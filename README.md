@@ -7,14 +7,20 @@ Simple dev dashboard
 
 - [ ] Order of startup / dependencies
 
-- [ ] Debugging
+- [ ] Custom commands (eg watch vs not)
+
+- [ ] Debugging (.NET)
+
+- [ ] Non-.NET support (Node.js, Python, Java, etc)
 
 - [ ] OTel (although could just advise zipkin or similar exporter + 
 configure URL to display in iframe?) (or even force some existing product
 or something into dll)
 
 - [ ] Tests (Playwright)
- 
+
+- [ ] CLI Tool version - point at config file
+
 - [ ] Packaging
 -----
 
