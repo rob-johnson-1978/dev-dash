@@ -3,6 +3,10 @@
 @using DevDash.Features.Dashboard
 @model DashboardModel
 
+@section Styles {
+    <link rel="stylesheet" href="_content/DevDash/devdash-dashboard.css" asp-append-version="true" />
+}
+
 <div class="runnable-applications">
     @foreach (var app in Model.RunnableApplications)
     {

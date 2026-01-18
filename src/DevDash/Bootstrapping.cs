@@ -2,8 +2,6 @@
 using Akka.Hosting;
 using DevDash.Features.Dashboard;
 using DevDash.Features.Dashboard.Actors;
-using DevDash.Features.OpenTelemetry;
-using DevDash.Features.OpenTelemetry.Actors;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,29 +31,8 @@ public static class Bootstrapping
                 .AddRazorPagesOptions(options =>
                 {
                     options.Conventions.AddAreaPageRoute("DevDash", "/Dashboard", "/");
-                    options.Conventions.AddAreaPageRoute("DevDash", "/OpenTelemetry", "/open-telemetry");
-                });
-
-            /* env / kestrel / grpc for OpenTelemetry purposes */
-
-            builder.Environment.EnvironmentName = Environments.Development;
-
-            builder.WebHost
-                .UseKestrelHttpsConfiguration()
-                .UseKestrel(kestrel =>
-                {
-                    // HTTP/2 endpoint for gRPC (no TLS)
-                    kestrel.ListenLocalhost(configuration.TelemetryPort, o => o.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http2);
-
-                    // HTTPS endpoint for web UI (uses dev cert via UseKestrelHttpsConfiguration)
-                    kestrel.ListenLocalhost(configuration.MainPort, o =>
-                    {
-                        o.UseHttps();
-                        o.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1AndHttp2;
-                    });
-                });
-
-            builder.Services.AddGrpc();
+                    options.Conventions.AddAreaPageRoute("DevDash", "/OtherPage", "/other-page");
+                });            
 
             /* akka */
 
@@ -84,10 +61,6 @@ public static class Bootstrapping
                     var dashboardProps = Props.Create(() => new DashboardSupervisor(devDashConfig));
                     var dashboardActor = system.ActorOf(dashboardProps, "dashboard-supervisor");
                     registry.Register<DashboardSupervisor>(dashboardActor);
-
-                    var telemetryProps = Props.Create(() => new TelemetrySupervisor(devDashConfig));
-                    var telemetryActor = system.ActorOf(telemetryProps, "telemetry-supervisor");
-                    registry.Register<TelemetrySupervisor>(telemetryActor);
                 });
 
                 akkaBuilder.AddStartup(async (actorSystem, registry) =>
@@ -109,12 +82,6 @@ public static class Bootstrapping
 
             app.UseStaticFiles();
             app.MapRazorPages().WithStaticAssets();
-
-            /* otel */
-
-            app.MapGrpcService<DevDashTraceService>();
-            app.MapGrpcService<DevDashMetricsService>();
-            app.MapGrpcService<DevDashLogsService>();
 
             /* devdash */
 

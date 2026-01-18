@@ -13,7 +13,9 @@ public class Ticker(ILogger<Ticker> logger) : BackgroundService
             logger.LogInformation("{a},{b},{c}", Faker.Lorem.Sentence(), Faker.Lorem.Sentence(), Faker.Lorem.Sentence());
 #pragma warning restore CA1873 // Avoid potentially expensive logging
 
-            await Task.Delay(Random.Shared.Next(500, 1000), stoppingToken);
+            var delay = Random.Shared.Next(5000, 15000);
+
+            await Task.Delay(delay, stoppingToken);
         }
     }
 }

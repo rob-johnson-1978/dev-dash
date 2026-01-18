@@ -3,7 +3,6 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/DevDash.Extensions.OpenTelemetry/DevDash.Extensions.OpenTelemetry.csproj" />
     <Project Path="src/DevDash/DevDash.csproj" />
   </Folder>
   <Folder Name="/demo/">

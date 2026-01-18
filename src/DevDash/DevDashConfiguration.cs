@@ -7,14 +7,6 @@ public sealed class DevDashConfiguration
 {
     /* public */
 
-    public DevDashConfiguration SetPorts(int telemetryPort = 5284, int mainPort = 5285)
-    {
-        TelemetryPort = telemetryPort;
-        MainPort = mainPort;
-
-        return this;
-    }
-
     public DevDashConfiguration AddCompose(string pathToFile, ComposeType composeType)
     {
         ComposeFilePath = pathToFile;
@@ -65,8 +57,4 @@ public sealed class DevDashConfiguration
     internal ComposeType ComposeType { get; private set; }
 
     internal bool HasCompose => !string.IsNullOrWhiteSpace(ComposeFilePath);
-
-    internal int TelemetryPort { get; private set; } = 5284;
-
-    internal int MainPort { get; private set; } = 5285;
 }

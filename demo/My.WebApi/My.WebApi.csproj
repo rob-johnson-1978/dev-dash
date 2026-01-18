@@ -7,13 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Faker.Net" Version="2.0.163" />    
-    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.14.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.14.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\DevDash.Extensions.OpenTelemetry\DevDash.Extensions.OpenTelemetry.csproj" />
+    <PackageReference Include="Faker.Net" Version="2.0.163" />    	
   </ItemGroup>
 
 </Project>
