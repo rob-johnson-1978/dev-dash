@@ -1,0 +1,95 @@
+﻿using Akka.Actor;
+using Akka.Hosting;
+using DevDash.Features.Dashboard.Actors;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
+using System.Net.ServerSentEvents;
+using System.Runtime.CompilerServices;
+using System.Threading.Channels;
+
+namespace DevDash.Features.Dashboard;
+
+internal static class Endpoints
+{
+    internal static async Task<IResult> HandleSseRequest(
+        [FromServices] ActorSystem actorSystem,
+        [FromServices] IHostApplicationLifetime applicationLifetime,
+        [FromServices] IRequiredActor<DashboardSupervisor> dashboardSupervisorRequiredActor,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var channel = Channel.CreateUnbounded<SseItem<string>>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = true
+        });
+
+        var props = Props.Create(() => new DashboardEventStreamSubscriber(channel.Writer));
+        var subscriber = actorSystem.ActorOf(props);
+
+        actorSystem.EventStream.Subscribe(subscriber, typeof(IDashboardEventRaised));
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            applicationLifetime.ApplicationStopping
+        );
+
+        applicationLifetime.ApplicationStopping.Register(() =>
+        {
+            try
+            {
+                httpContext.Abort();
+            }
+            catch
+            {
+                // ignored
+            }
+        });
+
+        dashboardSupervisorRequiredActor
+            .ActorRef
+            .Tell(new StartRunnableApplications());
+
+        return TypedResults.ServerSentEvents(YieldSseItems(channel, actorSystem, subscriber, linkedCts.Token));
+    }
+
+    internal static async Task<IResult> HandleCommand(
+        [FromServices] IRequiredActor<DashboardSupervisor> dashboardSupervisorRequiredActor,
+        [FromRoute] string applicationId,
+        [FromRoute] string command)
+    {
+        object message = command switch
+        {
+            "start-application" => new StartRunnableApplication(applicationId),
+            "stop-application" => new StopRunnableApplication(applicationId),
+            "restart-application" => new RestartRunnableApplication(applicationId),
+            _ => throw new ArgumentException($"Unknown command: {command}")
+        };
+
+        dashboardSupervisorRequiredActor.ActorRef.Tell(message);
+
+        return Results.Accepted();
+    }
+
+    private static async IAsyncEnumerable<SseItem<string>> YieldSseItems(
+        Channel<SseItem<string>> channel,
+        ActorSystem actorSystem,
+        IActorRef subscriber,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (var item in channel.Reader.ReadAllAsync(cancellationToken))
+            {
+                yield return item;
+            }
+        }
+        finally
+        {
+            actorSystem.EventStream.Unsubscribe(subscriber, typeof(IDashboardEventRaised));
+            actorSystem.Stop(subscriber);
+            channel.Writer.TryComplete();
+        }
+    }
+}

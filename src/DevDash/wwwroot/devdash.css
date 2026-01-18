@@ -1,0 +1,218 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    scrollbar-color: #333 #111;
+}
+
+html {
+    font-family: "Roboto", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+    font-variation-settings: "wdth" 100;
+    background: #111;
+    color: #ddd;
+    height: 100%;
+    font-size: 0.8em;
+}
+
+body {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+header {
+    flex-shrink: 0;
+    z-index: 1000;
+    padding: 1rem;
+    background-color: #1E90FF;
+    color: #111;
+}
+
+    header a, header a:visited {
+        color: #111;
+    }
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    min-height: 0;
+}
+
+    main > section#content {
+        flex: 1;
+        padding: 1rem;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+a, a:visited, .button {
+    color: #1E90FF;
+    text-decoration: none;
+}
+
+    a:hover, .button:hover {
+        opacity: 0.8;
+        cursor: pointer;
+    }
+
+    a.disabled, .button.disabled, a.disabled:hover, .button.disabled:hover {
+        color: #555;
+        pointer-events: none;
+        cursor: default;
+    }
+
+ul, ol {
+    list-style: none;
+}
+
+h1 {
+    font-weight: normal;
+}
+
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24
+}
+
+#modal_background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    display: none;
+}
+
+    #modal_background.active {
+        display: block;
+    }
+
+.modal-dialog {
+    position: fixed !important;
+    top: 10rem !important;
+    left: 10rem !important;
+    width: calc(100% - 20rem) !important;
+    height: calc(100% - 20rem) !important;
+    z-index: 1001 !important;
+    flex: none;
+}
+
+#message_container {
+    position: fixed;
+    bottom: 1rem;
+    right: 2rem;
+    z-index: 1010;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    max-width: 400px;
+}
+
+    #message_container .message {
+        background: #222;
+        color: #ddd;
+        padding: 1rem;
+        border: 1px solid #1E90FF;
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        width: 300px;
+        word-wrap: break-word;
+        font-size: 0.9rem;
+    }
+
+        #message_container .message.success {
+            border-color: #32CD32;
+        }
+
+        #message_container .message.warn {
+            border-color: #FFA500;
+        }
+
+        #message_container .message.error {
+            border-color: #FF4500;
+        }
+
+
+/* DASHBOARD HOME */
+
+.runnable-applications {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 3rem 0 3rem 3rem;
+}
+
+    .runnable-applications > .runnable-application {
+        width: calc(33.333% - 4rem);
+        border: 1px solid #222;
+        margin: 0 3rem 3rem 0;
+        background: #222;
+    }
+
+        .runnable-applications > .runnable-application > .runnable-application-header {
+            background: #333;
+            padding: 0.5rem 1rem;
+            font-weight: bold;
+            display: flex;
+            flex-direction: row;
+            margin-bottom: 1rem;
+        }
+
+            .runnable-applications > .runnable-application > .runnable-application-header > h2 {
+                flex: 1;
+            }
+
+            .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons {
+                text-align: right;
+            }
+
+                .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > span {
+                    display: inline-block;
+                    margin-left: 0.5rem;
+                }
+
+                    .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > .start,
+                    .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > .clear-logs {
+                        margin-left: 2rem;
+                    }
+
+        .runnable-applications > .runnable-application.modal-dialog > .runnable-application-header > .runnable-application-header-buttons > .full-screen,
+        .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > .exit-full-screen {
+            display: none;
+        }
+
+        .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > .full-screen,
+        .runnable-applications > .runnable-application.modal-dialog > .runnable-application-header > .runnable-application-header-buttons > .exit-full-screen {
+            display: inline-block;
+        }
+
+        .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > a.discovered-url {
+            display: inline-block;
+            margin-left: 1rem;
+        }
+
+        .runnable-applications > .runnable-application > .runnable-application-console-output {
+            padding: 1rem;
+            font-family: monospace;
+            white-space: pre;
+            overflow: auto;
+            font-size: 12px;
+            line-height: 2em;
+            font-size: 10px;
+            height: 24rem;
+        }
+
+        .runnable-applications > .runnable-application.modal-dialog > .runnable-application-console-output {
+            font-size: 14px;
+            height: calc(100% - 3.5rem);
+        }

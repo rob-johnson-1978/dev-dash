@@ -1,0 +1,30 @@
+@using DevDash.Features.Dashboard
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>DevDash - Your OPEN SOURCE development dashboard</title>
+    <link rel="stylesheet" href="_content/DevDash/devdash.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <h1><a href="/" title="Home">devdash</a></h1>
+        <subtitle>Your OPEN SOURCE development dashboard</subtitle>
+        <nav>
+            <a href="/">Applications</a>
+            <a href="/open-telemetry">Telemetry</a>
+        </nav>
+    </header>
+    <main>
+        <section id="content">
+            @RenderBody()
+        </section>
+    </main>
+    <div id="message_container"></div>
+    <div id="modal_background"></div>
+    <script type="text/javascript" src="_content/DevDash/devdash.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)    
+</body>
+</html>

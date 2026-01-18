@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DevDash.Extensions.OpenTelemetry/DevDash.Extensions.OpenTelemetry.csproj" />
+    <Project Path="src/DevDash/DevDash.csproj" />
+  </Folder>
+  <Folder Name="/demo/">
+    <File Path="demo/compose.yaml" />
+    <Project Path="demo/My.ConsoleApp/My.ConsoleApp.csproj" />
+    <Project Path="demo/My.DevDash/My.DevDash.csproj" />
+    <Project Path="demo/My.WebApi/My.WebApi.csproj" />
+  </Folder>
+</Solution>

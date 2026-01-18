@@ -1,0 +1,49 @@
+@page
+@using DevDash.Areas.DevDash.Pages
+@using DevDash.Features.Dashboard
+@model DashboardModel
+
+<div class="runnable-applications">
+    @foreach (var app in Model.RunnableApplications)
+    {
+        <div class="runnable-application" data-application-id="@app.Id">
+            <div class="runnable-application-header">
+                <h2>@app.Id</h2>
+                <div class="runnable-application-header-buttons">
+                    <span class="button start disabled material-symbols-outlined"
+                          onclick="sendCommand('@app.Id', 'start-application')"
+                          title="Start application">play_circle</span>
+                    <span class="button stop disabled material-symbols-outlined"
+                          onclick="sendCommand('@app.Id', 'stop-application')"
+                          title="Stop application">stop_circle</span>
+                    <span class="button restart disabled material-symbols-outlined"
+                          onclick="sendCommand('@app.Id', 'restart-application')"
+                          title="Restart application">settings_backup_restore</span>
+                    <span class="button clear-logs material-symbols-outlined"
+                          onclick="clearLogs('@app.Id')"
+                          title="Clear application logs">clear_all</span>
+                    <span class="button material-symbols-outlined"
+                          onclick="copyOutput('@app.Id')"
+                          title="Copy log output">content_copy</span>
+                    <span class="button full-screen material-symbols-outlined"
+                          onclick="expandOrCollapseRunnableApplication('@app.Id')"
+                          title="Expand">fullscreen</span>
+                    <span class="button exit-full-screen material-symbols-outlined"
+                          onclick="expandOrCollapseRunnableApplication('@app.Id')"
+                          title="Collapse">fullscreen_exit</span>
+                </div>
+            </div>
+            <div class="runnable-application-console-output"><pre><code></code></pre></div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script type="text/javascript">
+        window.EVENT_NAMES_RUNNABLE_APPLICATIONS_STARTED = '@nameof(RunnableApplicationsStarted)';
+        window.EVENT_NAMES_RUNNABLE_APPLICATION_UPDATED = '@nameof(RunnableApplicationUpdated)';
+        window.EVENT_NAMES_APPLICATION_OUTPUT_LINE_EMITTED = '@nameof(ApplicationOutputLineEmitted)';
+        window.EVENT_NAMES_APPLICATION_ERROR_OUTPUT_LINE_EMITTED = '@nameof(ApplicationErrorOutputLineEmitted)';
+    </script>
+    <script type="text/javascript" src="_content/DevDash/devdash-dashboard.js" asp-append-version="true"></script>
+}
