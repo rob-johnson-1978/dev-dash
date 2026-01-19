@@ -1,4 +1,4 @@
-﻿namespace DevDash.Features.Dashboard;
+﻿namespace DevDash.Infastructure;
 
 internal static class Constants
 {

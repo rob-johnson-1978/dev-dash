@@ -1,4 +1,5 @@
 ﻿using DevDash.Features.Configuration;
+using DevDash.Infastructure;
 using Microsoft.Extensions.Logging;
 
 namespace DevDash;
@@ -7,19 +8,24 @@ public sealed class DevDashConfiguration
 {
     /* public */
 
-    public DevDashConfiguration AddCompose(string pathToFile, ComposeType composeType)
+    public DevDashConfiguration AddCompose(int startupOrder, string pathToFile, ComposeType composeType)
     {
         ComposeFilePath = pathToFile;
         ComposeType = composeType;
 
+        AddToStartupOrdering(startupOrder, Constants.DockerComposeApplicationId);
+
         return this;
     }
 
-    public DevDashConfiguration AddDotNetApplication(string id, string pathToFolder, string? launchProfile = null)
+    public DevDashConfiguration AddDotNetApplication(int startupOrder, string id, string pathToFolder, string? launchProfile = null)
     {
         var lowerId = id.ToLower();
 
         DotNetApplications[lowerId] = new DotNetApplication(lowerId, pathToFolder, launchProfile);
+
+        AddToStartupOrdering(startupOrder, lowerId);
+
         return this;
     }
 
@@ -57,4 +63,17 @@ public sealed class DevDashConfiguration
     internal ComposeType ComposeType { get; private set; }
 
     internal bool HasCompose => !string.IsNullOrWhiteSpace(ComposeFilePath);
+
+    internal Dictionary<int, List<string>> StartupOrdering { get; } = [];
+
+    private void AddToStartupOrdering(int startupOrder, string applicationId)
+    {
+        if (!StartupOrdering.TryGetValue(startupOrder, out List<string>? value))
+        {
+            value = [];
+            StartupOrdering[startupOrder] = value;
+        }
+
+        value.Add(applicationId);
+    }
 }

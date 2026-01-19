@@ -1,6 +1,7 @@
 ﻿using Akka.Actor;
 using Akka.Event;
 using DevDash;
+using DevDash.Infastructure;
 using System.Collections.Immutable;
 
 namespace DevDash.Features.Dashboard.Actors;
@@ -95,6 +96,22 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         {
             case StartRunnableApplications:
                 {
+                    /*
+                     TODO:
+
+                     Run the first "layer" of applications (0 or smallest)
+
+                     Handle a new message "Application actually started"
+
+                     When this is received, add to a new collection of "started applications" in state
+
+                     Also, when this is received, see if we can move to the next layer (or if there is one)
+
+                     if there is a next layer, run those applications and repeat until all running
+
+                     Should stash other commands until all layers are run through?
+                     */
+
                     _logger.Info("Starting runnable applications...");
 
                     RunTask(async () => await Task.Delay(2000));
