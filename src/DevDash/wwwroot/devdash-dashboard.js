@@ -18,7 +18,7 @@ const clearLogs = (applicationId) => {
         return;
     }
 
-    runnableApplication.consoleOutputElement.textContent = "";
+    runnableApplication.consoleOutputElement.innerHTML = "";
 }
 
 const copyOutput = applicationId => {
@@ -28,7 +28,7 @@ const copyOutput = applicationId => {
         return;
     }
 
-    const textContent = runnableApplication.consoleOutputElement.textContent;
+    const textContent = runnableApplication.consoleOutputElement.innerText;
 
     navigator.clipboard.writeText(textContent)
         .then(() => {
@@ -65,7 +65,7 @@ const addEventListeners = (eventSource) => {
 
     eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATIONS_STARTED, () => {
         for (const applicationId in runnableApplications) {
-            runnableApplications[applicationId].consoleOutputElement.textContent = "";
+            runnableApplications[applicationId].consoleOutputElement.innerHTML = "";
         }
     });
 
@@ -131,7 +131,10 @@ const logToConsoleOutput = (e, isError = false) => {
     const isScrolledToBottom = runnableApplication.consoleContainerElement.scrollHeight - runnableApplication.consoleContainerElement.scrollTop
         <= runnableApplication.consoleContainerElement.clientHeight + 5;
 
-    runnableApplication.consoleOutputElement.textContent += data.line + "\n";
+    const lineElement = document.createElement("div");
+    lineElement.className = isError ? "log-line error" : "log-line";
+    lineElement.innerHTML = data.line;
+    runnableApplication.consoleOutputElement.appendChild(lineElement);
 
     if (isScrolledToBottom) {
         runnableApplication.consoleContainerElement.scrollTop = runnableApplication.consoleContainerElement.scrollHeight;

@@ -3,7 +3,7 @@ Simple dev dashboard
 
 -----
 # Backlog
-- [ ] Try hex1b (if not, figure out colouring of text in console somehow)
+- [x] _Try hex1b (if not, figure out colouring of text in console somehow)_
 
 - [ ] Order of startup / dependencies
 
