@@ -17,9 +17,9 @@ internal partial class DashboardProcessRunner
 
         var processStartInfo = new ProcessStartInfo
         {
-            FileName = _fileName,
-            Arguments = string.Join(" ", _args),
-            WorkingDirectory = _workingDirectory,
+            FileName = _state.FileName,
+            Arguments = string.Join(" ", _state.Args),
+            WorkingDirectory = _state.WorkingDirectory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -54,15 +54,15 @@ internal partial class DashboardProcessRunner
             var line = BuildHtmlFromOutput(e.Data);
 
             actorSystem.EventStream.Publish(
-                DashboardEventRaised.Create(new ApplicationOutputLineEmitted(_applicationId, line))
+                DashboardEventRaised.Create(new ApplicationOutputLineEmitted(_state.ApplicationId, line))
             );
 
-            if (_findUrlInMessage == null)
+            if (_state.FindUrlInMessage == null)
             {
                 return;
             }
 
-            var url = _findUrlInMessage.Invoke(line);
+            var url = _state.FindUrlInMessage.Invoke(line);
 
             if (url != null && !string.IsNullOrWhiteSpace(url))
             {
@@ -80,7 +80,7 @@ internal partial class DashboardProcessRunner
             var line = BuildHtmlFromOutput(e.Data);
 
             actorSystem.EventStream.Publish(
-                DashboardEventRaised.Create(new ApplicationErrorOutputLineEmitted(_applicationId, line))
+                DashboardEventRaised.Create(new ApplicationErrorOutputLineEmitted(_state.ApplicationId, line))
             );
         };
 
@@ -102,7 +102,7 @@ internal partial class DashboardProcessRunner
     private void SendUpdateStateCommandToParent()
     {
         Context.Parent.Tell(new UpdateRunnableApplication(
-            new RunnableApplication(_applicationId, _running, [.. _urls])
+            new RunnableApplication(_state.ApplicationId, _state.Running, [.. _state.Urls])
         ));
     }
 
@@ -113,23 +113,23 @@ internal partial class DashboardProcessRunner
 
         Context.System.EventStream.Publish(
             DashboardEventRaised.Create(
-                new ApplicationOutputLineEmitted(_applicationId, formattedMessage)
+                new ApplicationOutputLineEmitted(_state.ApplicationId, formattedMessage)
             )
         );
     }
 
     private void EnsureProcessIsStopped()
     {
-        if (_process == null)
+        if (_state.Process == null)
         {
             return;
         }
 
-        if (_process.HasExited)
+        if (_state.Process.HasExited)
         {
             try
             {
-                _process.Dispose();
+                _state.Process.Dispose();
                 return;
             }
             catch
@@ -140,14 +140,14 @@ internal partial class DashboardProcessRunner
         try
         {
             // Kill the entire process tree
-            KillProcessTree(_process.Id);
+            KillProcessTree(_state.Process.Id);
         }
         catch
         {
             // Fallback to simple kill if tree kill fails
             try
             {
-                _process.Kill();
+                _state.Process.Kill();
             }
             catch
             {

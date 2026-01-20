@@ -1,25 +1,13 @@
 ﻿using Akka.Actor;
 using Akka.Event;
 using DevDash.Infastructure;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace DevDash.Features.Dashboard.Actors;
 
 internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStash
 {
     private readonly ILoggingAdapter _logger = Context.GetLogger();
-    private string _applicationId = string.Empty;
-    private string _workingDirectory = string.Empty;
-    private string _fileName = string.Empty;
-    private string[] _args = [];
-    private Process? _process;
-    private bool _manuallyStopped = false;
-    private Func<string, string?>? _findUrlInMessage;
-    private readonly HashSet<string> _urls = [];
-    private bool _running = false;
+    private readonly DashboardProcessRunnerState _state = new();
 
     /* workflow */
 
@@ -36,14 +24,14 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         {
             case RunDotNetApplication command:
                 {
-                    _applicationId = command.Application.Id;
-                    _workingDirectory = command.Application.WorkingDirectoryPath;
-                    _fileName = "dotnet";
-                    _args = command.Application.LaunchProfile == null
+                    _state.ApplicationId = command.Application.Id;
+                    _state.WorkingDirectory = command.Application.WorkingDirectoryPath;
+                    _state.FileName = "dotnet";
+                    _state.Args = command.Application.LaunchProfile == null
                         ? ["run"]
                         : ["run", "-lp", command.Application.LaunchProfile];
 
-                    _findUrlInMessage = line =>
+                    _state.FindUrlInMessage = line =>
                     {
                         // Look for lines like:
                         // Now listening on: https://localhost:5001
@@ -62,21 +50,21 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 }
             case RunCompose command:
                 {
-                    _applicationId = Constants.DockerComposeApplicationId;
+                    _state.ApplicationId = Constants.DockerComposeApplicationId;
 
                     var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), command.ComposeFilePath));
 
-                    _workingDirectory = Path.GetDirectoryName(fullPath)
+                    _state.WorkingDirectory = Path.GetDirectoryName(fullPath)
                         ?? throw new InvalidOperationException("Could not determine working directory");
 
-                    _fileName = command.ComposeType switch
+                    _state.FileName = command.ComposeType switch
                     {
                         ComposeType.Docker => "docker",
                         ComposeType.Podman => "podman",
                         _ => throw new NotImplementedException()
                     };
 
-                    _args = ["compose", "-f", fullPath, "up", "--build", "--force-recreate"];
+                    _state.Args = ["compose", "-f", fullPath, "up", "--build", "--force-recreate"];
 
                     HandleStart();
 
@@ -102,7 +90,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         {
             case ICommmandRunnableApplicationsToChangeState command:
                 {
-                    if (_process == null)
+                    if (_state.Process == null)
                     {
                         _logger.Warning("Received {0} command but no dashboard process is available.", nameof(ICommmandRunnableApplicationsToChangeState));
                         break;
@@ -120,7 +108,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                             {
                                 Become(WaitingToStopBeforeRestart);
 
-                                Self.Tell(new StopRunnableApplication(_applicationId));
+                                Self.Tell(new StopRunnableApplication(_state.ApplicationId));
 
                                 break;
                             }
@@ -141,12 +129,12 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 {
                     var lowerUrl = @event.Url.ToLower();
 
-                    if (_urls.Contains(lowerUrl))
+                    if (_state.Urls.Contains(lowerUrl))
                     {
                         break;
                     }
 
-                    _urls.Add(lowerUrl);
+                    _state.Urls.Add(lowerUrl);
 
                     SendUpdateStateCommandToParent();
 
@@ -167,7 +155,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 {
                     HandleStop();
 
-                    Self.Tell(new StartRunnableApplication(_applicationId));
+                    Self.Tell(new StartRunnableApplication(_state.ApplicationId));
 
                     break;
                 }
@@ -184,7 +172,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         {
             case ICommmandRunnableApplicationsToChangeState command:
                 {
-                    if (_process == null)
+                    if (_state.Process == null)
                     {
                         _logger.Warning("Received {0} command but no dashboard process is available.", nameof(ICommmandRunnableApplicationsToChangeState));
                         break;
@@ -223,11 +211,11 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
     {
         PublishActionLogMessage("Starting process");
 
-        _process = CreateProcess();
+        _state.Process = CreateProcess();
 
-        RunTask(async () => await StartProcess(_process));
+        RunTask(async () => await StartProcess(_state.Process));
 
-        _running = true;
+        _state.Running = true;
 
         PublishActionLogMessage("Process started. Waiting for output...");
 
@@ -240,8 +228,8 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
     private void HandleStop()
     {
-        _manuallyStopped = true;
-        _urls.Clear();
+        _state.ManuallyStopped = true;
+        _state.Urls.Clear();
 
         PublishActionLogMessage("Stopping process");
 
@@ -249,7 +237,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
         PublishActionLogMessage("Process stopped");
 
-        _running = false;
+        _state.Running = false;
 
         SendUpdateStateCommandToParent();
 
@@ -260,14 +248,14 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
     private void HandleProcessExited()
     {
-        if (_manuallyStopped)
+        if (_state.ManuallyStopped)
         {
-            _manuallyStopped = false;
+            _state.ManuallyStopped = false;
             return;
         }
 
-        _manuallyStopped = false;
-        _running = false;        
+        _state.ManuallyStopped = false;
+        _state.Running = false;        
 
         SendUpdateStateCommandToParent();
 

@@ -9,8 +9,8 @@ namespace DevDash.Features.Dashboard.Actors;
 internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : UntypedActor, IWithUnboundedStash, IWithTimers
 {
     private const string UpdateTimerKey = "publish-runnable-application-timer-key";
-    private readonly ILoggingAdapter _logger = Context.GetLogger();
-    private readonly Dictionary<string, RunnableApplicationWithActor> _runnableApplications = [];
+    private readonly ILoggingAdapter _logger = Context.GetLogger();   
+    private readonly DashboardSupervisorState _state = new();
 
     public IStash Stash { get; set; } = null!;
 
@@ -44,7 +44,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     if (configuration.HasCompose)
                     {
-                        _runnableApplications.Add(
+                        _state.RunnableApplications.Add(
                             Constants.DockerComposeApplicationId,
                             new RunnableApplicationWithActor(
                                 Constants.DockerComposeApplicationId,
@@ -57,7 +57,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     foreach (var applicationKeyValuePair in configuration.DotNetApplications)
                     {
-                        _runnableApplications.Add(
+                        _state.RunnableApplications.Add(
                             applicationKeyValuePair.Key,
                             new RunnableApplicationWithActor(
                                 applicationKeyValuePair.Key,
@@ -68,7 +68,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         );
                     }
 
-                    _logger.Info("Dashboard configured with {0} runnable applications.", _runnableApplications.Count);
+                    _logger.Info("Dashboard configured with {0} runnable applications.", _state.RunnableApplications.Count);
 
                     Become(Configured);
 
@@ -101,7 +101,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                      Run the first "layer" of applications (0 or smallest)
 
-                     Handle a new message "Application actually started"
+                     Handle a new message "Application actually started" (will need to be different, per-type)
 
                      When this is received, add to a new collection of "started applications" in state
 
@@ -118,7 +118,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     Context.System.EventStream.Publish(DashboardEventRaised.Create(new RunnableApplicationsStarted()));
 
-                    if (_runnableApplications.TryGetValue(Constants.DockerComposeApplicationId, out var composeAppRunner))
+                    if (_state.RunnableApplications.TryGetValue(Constants.DockerComposeApplicationId, out var composeAppRunner))
                     {
                         composeAppRunner
                             .ActorRef?
@@ -127,7 +127,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     foreach (var applicationKeyValuePair in configuration.DotNetApplications)
                     {
-                        if (!_runnableApplications.TryGetValue(applicationKeyValuePair.Key, out var dotNetApplicationRunner))
+                        if (!_state.RunnableApplications.TryGetValue(applicationKeyValuePair.Key, out var dotNetApplicationRunner))
                         {
                             _logger.Warning("DotNet application runner not found for: {0}", applicationKeyValuePair.Key);
                             continue;
@@ -179,14 +179,14 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 }
             case UpdateRunnableApplication command:
                 {
-                    if (!_runnableApplications.TryGetValue(command.Application.Id, out var runnableApplication))
+                    if (!_state.RunnableApplications.TryGetValue(command.Application.Id, out var runnableApplication))
                     {
                         _logger.Warning("Received update for unknown application ID: {0}", command.Application.Id);
                         break;
                     }
 
                     var updatedApplication = runnableApplication with { Running = command.Application.Running, Urls = command.Application.Urls };
-                    _runnableApplications[command.Application.Id] = updatedApplication;
+                    _state.RunnableApplications[command.Application.Id] = updatedApplication;
 
                     _logger.Info("Runnable application updated: {0}, Running: {1}, URLs: {2}", command.Application.Id, command.Application.Running, string.Join(", ", command.Application.Urls));
 
@@ -198,7 +198,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 }
             case ICommmandRunnableApplicationsToChangeState command:
                 {
-                    if (!_runnableApplications.TryGetValue(command.Id, out var runnableApplication))
+                    if (!_state.RunnableApplications.TryGetValue(command.Id, out var runnableApplication))
                     {
                         _logger.Warning("Received stop request for unknown application ID: {0}", command.Id);
                         break;
@@ -210,7 +210,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 }
             case PublishUpdateForAllRunnableApplications:
                 {
-                    foreach (var app in _runnableApplications.Values)
+                    foreach (var app in _state.RunnableApplications.Values)
                     {
                         Context.System.EventStream.Publish(
                             DashboardEventRaised.Create(
@@ -231,7 +231,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
     private void HandleGetRunnableApplications()
     {
         Context.Sender.Tell(
-            _runnableApplications
+            _state.RunnableApplications
                 .Select(r => new RunnableApplication(r.Key, r.Value.Running, r.Value.Urls))
                 .ToImmutableArray()
         );
