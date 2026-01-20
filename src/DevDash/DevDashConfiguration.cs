@@ -10,10 +10,7 @@ public sealed class DevDashConfiguration
 
     public DevDashConfiguration AddCompose(int startupOrder, string pathToFile, ComposeType composeType)
     {
-        ComposeFilePath = pathToFile;
-        ComposeType = composeType;
-
-        AddToStartupOrdering(startupOrder, Constants.DockerComposeApplicationId);
+        ComposeConfiguration = new ComposeConfiguration(startupOrder, pathToFile, composeType);
 
         return this;
     }
@@ -22,9 +19,7 @@ public sealed class DevDashConfiguration
     {
         var lowerId = id.ToLower();
 
-        DotNetApplications[lowerId] = new DotNetApplication(lowerId, pathToFolder, launchProfile);
-
-        AddToStartupOrdering(startupOrder, lowerId);
+        DotNetApplications[lowerId] = new DotNetApplication(startupOrder, lowerId, pathToFolder, launchProfile);
 
         return this;
     }
@@ -58,22 +53,5 @@ public sealed class DevDashConfiguration
 
     internal LogLevel LogLevel { get; private set; } = LogLevel.Debug;
 
-    internal string ComposeFilePath { get; private set; } = string.Empty;
-
-    internal ComposeType ComposeType { get; private set; }
-
-    internal bool HasCompose => !string.IsNullOrWhiteSpace(ComposeFilePath);
-
-    internal Dictionary<int, List<string>> StartupOrdering { get; } = [];
-
-    private void AddToStartupOrdering(int startupOrder, string applicationId)
-    {
-        if (!StartupOrdering.TryGetValue(startupOrder, out List<string>? value))
-        {
-            value = [];
-            StartupOrdering[startupOrder] = value;
-        }
-
-        value.Add(applicationId);
-    }
+    internal ComposeConfiguration? ComposeConfiguration { get; private set; }    
 }

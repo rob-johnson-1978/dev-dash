@@ -63,7 +63,7 @@ const addEventListeners = (eventSource) => {
         showMessage("Error connecting to event stream. Attempting to reconnect...", "error");
     });
 
-    eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATIONS_STARTED, () => {
+    eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATIONS_STARTING, () => {
         for (const applicationId in runnableApplications) {
             runnableApplications[applicationId].consoleOutputElement.innerHTML = "";
         }

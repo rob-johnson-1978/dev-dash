@@ -2,14 +2,17 @@
 
 internal sealed record DotNetApplication
 {
-    public DotNetApplication(string id, string pathToFolder, string? launchProfile)
+    public DotNetApplication(int startupOrder, string id, string pathToFolder, string? launchProfile)
     {
+        StartupOrder = startupOrder;
         Id = id;
         LaunchProfile = launchProfile;
         WorkingDirectoryPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), pathToFolder));
     }
 
     public string Id { get; }
+
+    public int StartupOrder { get; }
 
     public string? LaunchProfile { get; }
 

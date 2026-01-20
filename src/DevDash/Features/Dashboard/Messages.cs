@@ -11,12 +11,13 @@ internal sealed record ConfigureDashboard;
 
 internal sealed record StartRunnableApplications;
 
+internal interface IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted;
+
+internal sealed record CheckIfNextGroupOfRunnableApplicationsCanBeStarted : IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted;
+
+internal sealed record RunnableApplicationStarted(string Id) : IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted;
+
 internal sealed record UpdateRunnableApplication(RunnableApplication Application);
-
-internal record RunnableApplication(string Id, bool Running, ImmutableArray<string> Urls);
-
-internal sealed record RunnableApplicationWithActor(string Id, bool Running, ImmutableArray<string> Urls, IActorRef ActorRef) 
-    : RunnableApplication(Id, Running, Urls);
 
 internal sealed record GetRunnableApplications;
 
@@ -75,7 +76,7 @@ internal sealed record DashboardEventRaised<TEvent> : IDashboardEventRaised
     public string Type { get; }
 }
 
-internal sealed record RunnableApplicationsStarted;
+internal sealed record RunnableApplicationsStarting;
 
 internal sealed record RunnableApplicationUpdated(RunnableApplication Application, bool IsBackgroundUpdate = false);
 

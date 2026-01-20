@@ -9,7 +9,7 @@ namespace DevDash.Features.Dashboard.Actors;
 internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : UntypedActor, IWithUnboundedStash, IWithTimers
 {
     private const string UpdateTimerKey = "publish-runnable-application-timer-key";
-    private readonly ILoggingAdapter _logger = Context.GetLogger();   
+    private readonly ILoggingAdapter _logger = Context.GetLogger();
     private readonly DashboardSupervisorState _state = new();
 
     public IStash Stash { get; set; } = null!;
@@ -42,13 +42,15 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         RunTask(async () => await configuration.BeforeStart());
                     }
 
-                    if (configuration.HasCompose)
+                    if (configuration.ComposeConfiguration != null)
                     {
                         _state.RunnableApplications.Add(
                             Constants.DockerComposeApplicationId,
                             new RunnableApplicationWithActor(
+                                configuration.ComposeConfiguration.StartupOrder,
                                 Constants.DockerComposeApplicationId,
                                 Running: false,
+                                RunRequested: false,
                                 [],
                                 Context.ActorOf<DashboardProcessRunner>(Constants.DockerComposeApplicationId)
                             )
@@ -60,13 +62,19 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         _state.RunnableApplications.Add(
                             applicationKeyValuePair.Key,
                             new RunnableApplicationWithActor(
+                                applicationKeyValuePair.Value.StartupOrder,
                                 applicationKeyValuePair.Key,
                                 Running: false,
+                                RunRequested: false,
                                 [],
                                 Context.ActorOf<DashboardProcessRunner>(applicationKeyValuePair.Key)
                             )
                         );
                     }
+
+                    // todo: more application types here
+
+                    _state.CurrentGroupOfApplicationsToBeStarted = _state.RunnableApplications.Values.Min(x => x.StartupOrder);
 
                     _logger.Info("Dashboard configured with {0} runnable applications.", _state.RunnableApplications.Count);
 
@@ -76,15 +84,9 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     break;
                 }
-            case StartRunnableApplications:
-            case GetRunnableApplications:
-            case RunnableApplicationUpdated:
-                {
-                    Stash.Stash();
-                    break;
-                }
             default:
                 {
+                    Stash.Stash();
                     break;
                 }
         }
@@ -96,6 +98,16 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         {
             case StartRunnableApplications:
                 {
+                    _logger.Info("Starting runnable applications...");
+
+                    RunTask(async () => await Task.Delay(2000));
+
+                    Context.System.EventStream.Publish(DashboardEventRaised.Create(new RunnableApplicationsStarting()));
+
+                    Become(StartingRunnableApplications);
+
+                    Self.Tell(new CheckIfNextGroupOfRunnableApplicationsCanBeStarted());
+
                     /*
                      TODO:
 
@@ -112,40 +124,44 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                      Should stash other commands until all layers are run through?
                      */
 
-                    _logger.Info("Starting runnable applications...");
 
-                    RunTask(async () => await Task.Delay(2000));
 
-                    Context.System.EventStream.Publish(DashboardEventRaised.Create(new RunnableApplicationsStarted()));
+                    //if (
+                    //    configuration.ComposeConfiguration != null &&
+                    //    _state.RunnableApplications.TryGetValue(Constants.DockerComposeApplicationId, out var composeAppRunner)
+                    //)
+                    //{
+                    //    composeAppRunner
+                    //        .ActorRef?
+                    //        .Tell(
+                    //            new RunCompose(
+                    //                configuration.ComposeConfiguration.FilePath, 
+                    //                configuration.ComposeConfiguration.ComposeType
+                    //            )
+                    //        );
+                    //}
 
-                    if (_state.RunnableApplications.TryGetValue(Constants.DockerComposeApplicationId, out var composeAppRunner))
-                    {
-                        composeAppRunner
-                            .ActorRef?
-                            .Tell(new RunCompose(configuration.ComposeFilePath, configuration.ComposeType));
-                    }
+                    //foreach (var applicationKeyValuePair in configuration.DotNetApplications)
+                    //{
+                    //    if (!_state.RunnableApplications.TryGetValue(applicationKeyValuePair.Key, out var dotNetApplicationRunner))
+                    //    {
+                    //        _logger.Warning("DotNet application runner not found for: {0}", applicationKeyValuePair.Key);
+                    //        continue;
+                    //    }
 
-                    foreach (var applicationKeyValuePair in configuration.DotNetApplications)
-                    {
-                        if (!_state.RunnableApplications.TryGetValue(applicationKeyValuePair.Key, out var dotNetApplicationRunner))
-                        {
-                            _logger.Warning("DotNet application runner not found for: {0}", applicationKeyValuePair.Key);
-                            continue;
-                        }
+                    //    dotNetApplicationRunner.ActorRef.Tell(new RunDotNetApplication(applicationKeyValuePair.Value));
+                    //} // todo: await "Ask" here instead, so the apps start sequentially, and dependencies can have a controlled start
 
-                        dotNetApplicationRunner.ActorRef.Tell(new RunDotNetApplication(applicationKeyValuePair.Value));
-                    } // todo: await "Ask" here instead, so the apps start sequentially, and dependencies can have a controlled start
+                    //Timers.StartPeriodicTimer(
+                    //    UpdateTimerKey,
+                    //    new PublishUpdateForAllRunnableApplications(),
+                    //    TimeSpan.FromSeconds(1),
+                    //    TimeSpan.FromSeconds(1)
+                    //);
 
-                    Timers.StartPeriodicTimer(
-                        UpdateTimerKey,
-                        new PublishUpdateForAllRunnableApplications(),
-                        TimeSpan.FromSeconds(1),
-                        TimeSpan.FromSeconds(1)
-                    );
+                    //Become(ProcessesStartedForTheFirstTime);
 
-                    Become(ProcessesStartedForTheFirstTime);
-
-                    Stash.UnstashAll();
+                    //Stash.UnstashAll();
 
                     break;
                 }
@@ -154,21 +170,46 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                     HandleGetRunnableApplications();
                     break;
                 }
-            case ICommmandRunnableApplicationsToChangeState:
-            case UpdateRunnableApplication:
-            case PublishUpdateForAllRunnableApplications:
-                {
-                    Stash.Stash();
-                    break;
-                }
             default:
                 {
+                    Stash.Stash();
                     break;
                 }
         }
     }
 
-    private void ProcessesStartedForTheFirstTime(object message)
+    private void StartingRunnableApplications(object message)
+    {
+        // may need to unstash some here because as the applications become started, they will send messages back
+        // and the UI should reflect that
+
+        switch (message)
+        {
+            case IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted:
+                {
+                    if (message is RunnableApplicationStarted runnableApplicationStarted)
+                    {
+                        // todo: update state to mark application as started
+                    }
+
+                    // now do check to see if still waiting, or if can start next group
+                    // if can start next group, get next group, update state next group number, and start those applications, then wait for their started messages
+
+                    // if there is no next group, Become(RunnableApplicationsStartedForTheFirstTime) and unstash all
+
+                    
+
+                    break;
+                }
+            default:
+                {
+                    Stash.Stash();
+                    break;
+                }
+        }
+    }
+
+    private void RunnableApplicationsStartedForTheFirstTime(object message)
     {
         switch (message)
         {
