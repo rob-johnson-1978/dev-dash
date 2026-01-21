@@ -47,6 +47,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         _state.RunnableApplications.Add(
                             Constants.DockerComposeApplicationId,
                             new RunnableApplicationWithActor(
+                                ApplicationType.Compose,
                                 configuration.ComposeConfiguration.StartupOrder,
                                 Constants.DockerComposeApplicationId,
                                 Running: false,
@@ -59,9 +60,10 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     foreach (var applicationKeyValuePair in configuration.DotNetApplications)
                     {
-                        _state.RunnableApplications.Add(
+                        _state.RunnableApplications.Add(                            
                             applicationKeyValuePair.Key,
                             new RunnableApplicationWithActor(
+                                ApplicationType.DotNet,
                                 applicationKeyValuePair.Value.StartupOrder,
                                 applicationKeyValuePair.Key,
                                 Running: false,
@@ -104,64 +106,18 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     Context.System.EventStream.Publish(DashboardEventRaised.Create(new RunnableApplicationsStarting()));
 
+                    Timers.StartPeriodicTimer(
+                        UpdateTimerKey,
+                        new PublishUpdateForAllRunnableApplications(),
+                        TimeSpan.FromSeconds(1),
+                        TimeSpan.FromSeconds(1)
+                    );
+
                     Become(StartingRunnableApplications);
 
                     Self.Tell(new CheckIfNextGroupOfRunnableApplicationsCanBeStarted());
 
-                    /*
-                     TODO:
-
-                     Run the first "layer" of applications (0 or smallest)
-
-                     Handle a new message "Application actually started" (will need to be different, per-type)
-
-                     When this is received, add to a new collection of "started applications" in state
-
-                     Also, when this is received, see if we can move to the next layer (or if there is one)
-
-                     if there is a next layer, run those applications and repeat until all running
-
-                     Should stash other commands until all layers are run through?
-                     */
-
-
-
-                    //if (
-                    //    configuration.ComposeConfiguration != null &&
-                    //    _state.RunnableApplications.TryGetValue(Constants.DockerComposeApplicationId, out var composeAppRunner)
-                    //)
-                    //{
-                    //    composeAppRunner
-                    //        .ActorRef?
-                    //        .Tell(
-                    //            new RunCompose(
-                    //                configuration.ComposeConfiguration.FilePath, 
-                    //                configuration.ComposeConfiguration.ComposeType
-                    //            )
-                    //        );
-                    //}
-
-                    //foreach (var applicationKeyValuePair in configuration.DotNetApplications)
-                    //{
-                    //    if (!_state.RunnableApplications.TryGetValue(applicationKeyValuePair.Key, out var dotNetApplicationRunner))
-                    //    {
-                    //        _logger.Warning("DotNet application runner not found for: {0}", applicationKeyValuePair.Key);
-                    //        continue;
-                    //    }
-
-                    //    dotNetApplicationRunner.ActorRef.Tell(new RunDotNetApplication(applicationKeyValuePair.Value));
-                    //} // todo: await "Ask" here instead, so the apps start sequentially, and dependencies can have a controlled start
-
-                    //Timers.StartPeriodicTimer(
-                    //    UpdateTimerKey,
-                    //    new PublishUpdateForAllRunnableApplications(),
-                    //    TimeSpan.FromSeconds(1),
-                    //    TimeSpan.FromSeconds(1)
-                    //);
-
-                    //Become(ProcessesStartedForTheFirstTime);
-
-                    //Stash.UnstashAll();
+                    Stash.UnstashAll();
 
                     break;
                 }
@@ -180,24 +136,111 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
     private void StartingRunnableApplications(object message)
     {
-        // may need to unstash some here because as the applications become started, they will send messages back
-        // and the UI should reflect that
-
         switch (message)
         {
+            case GetRunnableApplications:
+                {
+                    HandleGetRunnableApplications();
+                    break;
+                }
+            case UpdateRunnableApplication command:
+                {
+                    HandleUpdateRunnableApplication(command);
+                    break;
+                }
+            case PublishUpdateForAllRunnableApplications:
+                {
+                    HandlePublishUpdateForAllRunnableApplications();
+                    break;
+                }
             case IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted:
                 {
-                    if (message is RunnableApplicationStarted runnableApplicationStarted)
+                    if (
+                        message is RunnableApplicationStarted runnableApplicationStarted &&
+                        _state.RunnableApplications.TryGetValue(runnableApplicationStarted.Id, out var runnableApplication)
+                    )
                     {
-                        // todo: update state to mark application as started
+                        _state.RunnableApplications[runnableApplicationStarted.Id] = runnableApplication with
+                        {
+                            RunRequested = false
+                        };
                     }
 
-                    // now do check to see if still waiting, or if can start next group
-                    // if can start next group, get next group, update state next group number, and start those applications, then wait for their started messages
+                    var allInCurrentGroupStarted = _state
+                        .RunnableApplications
+                        .Values                        
+                        .All(x => x.StartupOrder == _state.CurrentGroupOfApplicationsToBeStarted && !x.RunRequested);
 
-                    // if there is no next group, Become(RunnableApplicationsStartedForTheFirstTime) and unstash all
+                    if (!allInCurrentGroupStarted)
+                    {
+                        break;
+                    }
 
-                    
+                    var moreGroupsToRun = _state
+                        .RunnableApplications
+                        .Values
+                        .Any(x => x.StartupOrder > _state.CurrentGroupOfApplicationsToBeStarted);
+
+                    if (!moreGroupsToRun)
+                    {
+                        _logger.Info("All runnable applications have been started.");
+
+                        Become(RunnableApplicationsStartedForTheFirstTime);
+
+                        Stash.UnstashAll();
+
+                        break;
+                    }
+
+                    var nextGroupNumber = _state.CurrentGroupOfApplicationsToBeStarted = _state
+                        .RunnableApplications
+                        .Values
+                        .Where(x => x.StartupOrder > _state.CurrentGroupOfApplicationsToBeStarted)
+                        .Min(x => x.StartupOrder);
+
+                    var applicationsToStart = _state
+                        .RunnableApplications
+                        .Values
+                        .Where(x => x.StartupOrder == nextGroupNumber);
+
+                    foreach (var application in applicationsToStart)
+                    {
+                        _state.RunnableApplications[application.Id] = application with
+                        {
+                            RunRequested = true
+                        };
+
+                        switch (application.Type)
+                        {
+                            case ApplicationType.Compose:
+                                {
+                                    application
+                                        .ActorRef?
+                                        .Tell(
+                                            new RunCompose(
+                                                configuration.ComposeConfiguration!.FilePath,
+                                                configuration.ComposeConfiguration!.ComposeType
+                                            )
+                                        );
+
+                                    break;
+                                }
+                            case ApplicationType.DotNet:
+                                {
+                                    application
+                                        .ActorRef?
+                                        .Tell(
+                                            new RunDotNetApplication(
+                                                configuration.DotNetApplications[application.Id]
+                                            )
+                                        );
+
+                                    break;
+                                }
+                            default: 
+                                throw new NotImplementedException();
+                        }
+                    }
 
                     break;
                 }
@@ -220,21 +263,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 }
             case UpdateRunnableApplication command:
                 {
-                    if (!_state.RunnableApplications.TryGetValue(command.Application.Id, out var runnableApplication))
-                    {
-                        _logger.Warning("Received update for unknown application ID: {0}", command.Application.Id);
-                        break;
-                    }
-
-                    var updatedApplication = runnableApplication with { Running = command.Application.Running, Urls = command.Application.Urls };
-                    _state.RunnableApplications[command.Application.Id] = updatedApplication;
-
-                    _logger.Info("Runnable application updated: {0}, Running: {1}, URLs: {2}", command.Application.Id, command.Application.Running, string.Join(", ", command.Application.Urls));
-
-                    var @event = new RunnableApplicationUpdated(new RunnableApplication(updatedApplication.Id, updatedApplication.Running, updatedApplication.Urls));
-
-                    Context.System.EventStream.Publish(DashboardEventRaised.Create(@event));
-
+                    HandleUpdateRunnableApplication(command);
                     break;
                 }
             case ICommmandRunnableApplicationsToChangeState command:
@@ -251,15 +280,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 }
             case PublishUpdateForAllRunnableApplications:
                 {
-                    foreach (var app in _state.RunnableApplications.Values)
-                    {
-                        Context.System.EventStream.Publish(
-                            DashboardEventRaised.Create(
-                                new RunnableApplicationUpdated(app, IsBackgroundUpdate: true)
-                            )
-                        );
-                    }
-
+                    HandlePublishUpdateForAllRunnableApplications();
                     break;
                 }
             default:
@@ -276,5 +297,35 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 .Select(r => new RunnableApplication(r.Key, r.Value.Running, r.Value.Urls))
                 .ToImmutableArray()
         );
+    }
+
+    private void HandleUpdateRunnableApplication(UpdateRunnableApplication command)
+    {
+        if (!_state.RunnableApplications.TryGetValue(command.Application.Id, out var runnableApplication))
+        {
+            _logger.Warning("Received update for unknown application ID: {0}", command.Application.Id);
+            return;
+        }
+
+        var updatedApplication = runnableApplication with { Running = command.Application.Running, Urls = command.Application.Urls };
+        _state.RunnableApplications[command.Application.Id] = updatedApplication;
+
+        _logger.Info("Runnable application updated: {0}, Running: {1}, URLs: {2}", command.Application.Id, command.Application.Running, string.Join(", ", command.Application.Urls));
+
+        var @event = new RunnableApplicationUpdated(new RunnableApplication(updatedApplication.Id, updatedApplication.Running, updatedApplication.Urls));
+
+        Context.System.EventStream.Publish(DashboardEventRaised.Create(@event));
+    }
+
+    private void HandlePublishUpdateForAllRunnableApplications()
+    {
+        foreach (var app in _state.RunnableApplications.Values)
+        {
+            Context.System.EventStream.Publish(
+                DashboardEventRaised.Create(
+                    new RunnableApplicationUpdated(app, IsBackgroundUpdate: true)
+                )
+            );
+        }
     }
 }
