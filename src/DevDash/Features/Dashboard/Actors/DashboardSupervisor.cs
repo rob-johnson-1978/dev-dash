@@ -60,7 +60,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     foreach (var applicationKeyValuePair in configuration.DotNetApplications)
                     {
-                        _state.RunnableApplications.Add(                            
+                        _state.RunnableApplications.Add(
                             applicationKeyValuePair.Key,
                             new RunnableApplicationWithActor(
                                 ApplicationType.DotNet,
@@ -76,7 +76,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     // todo: more application types here
 
-                    _state.CurrentGroupOfApplicationsToBeStarted = _state.RunnableApplications.Values.Min(x => x.StartupOrder);
+                    _state.CurrentGroupOfApplicationsToBeStarted = _state.RunnableApplications.Values.Min(x => x.StartupOrder) - 1;
 
                     _logger.Info("Dashboard configured with {0} runnable applications.", _state.RunnableApplications.Count);
 
@@ -166,13 +166,14 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         };
                     }
 
-                    var allInCurrentGroupStarted = _state
+                    var currentlyWaitingForProcessMessages = _state
                         .RunnableApplications
-                        .Values                        
-                        .All(x => x.StartupOrder == _state.CurrentGroupOfApplicationsToBeStarted && !x.RunRequested);
+                        .Values
+                        .Any(x => x.StartupOrder == _state.CurrentGroupOfApplicationsToBeStarted && x.RunRequested);
 
-                    if (!allInCurrentGroupStarted)
+                    if(currentlyWaitingForProcessMessages)
                     {
+                        _logger.Info("Waiting for more applications in the current group (Order: {0}) to start...", _state.CurrentGroupOfApplicationsToBeStarted);
                         break;
                     }
 
@@ -197,6 +198,8 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         .Values
                         .Where(x => x.StartupOrder > _state.CurrentGroupOfApplicationsToBeStarted)
                         .Min(x => x.StartupOrder);
+
+                    _logger.Info("Starting next group of runnable applications (Order: {0})...", nextGroupNumber);
 
                     var applicationsToStart = _state
                         .RunnableApplications
@@ -237,7 +240,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                                     break;
                                 }
-                            default: 
+                            default:
                                 throw new NotImplementedException();
                         }
                     }
@@ -268,6 +271,9 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 }
             case ICommmandRunnableApplicationsToChangeState command:
                 {
+
+                    // todo: add "RunRequested" to state going back to UI - if true, then disable all controls!!!
+
                     if (!_state.RunnableApplications.TryGetValue(command.Id, out var runnableApplication))
                     {
                         _logger.Warning("Received stop request for unknown application ID: {0}", command.Id);
@@ -294,7 +300,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
     {
         Context.Sender.Tell(
             _state.RunnableApplications
-                .Select(r => new RunnableApplication(r.Key, r.Value.Running, r.Value.Urls))
+                .Select(r => new RunnableApplication(r.Key, r.Value.Running, r.Value.RunRequested, r.Value.Urls))
                 .ToImmutableArray()
         );
     }
@@ -307,12 +313,29 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
             return;
         }
 
-        var updatedApplication = runnableApplication with { Running = command.Application.Running, Urls = command.Application.Urls };
+        var updatedApplication = runnableApplication with
+        {
+            Running = command.Application.Running,
+            Urls = command.Application.Urls
+        };
+
         _state.RunnableApplications[command.Application.Id] = updatedApplication;
 
-        _logger.Info("Runnable application updated: {0}, Running: {1}, URLs: {2}", command.Application.Id, command.Application.Running, string.Join(", ", command.Application.Urls));
+        _logger.Info(
+            "Runnable application updated: {0}, Running: {1}, URLs: {2}", 
+            command.Application.Id, 
+            command.Application.Running, 
+            string.Join(", ", command.Application.Urls)
+        );
 
-        var @event = new RunnableApplicationUpdated(new RunnableApplication(updatedApplication.Id, updatedApplication.Running, updatedApplication.Urls));
+        var @event = new RunnableApplicationUpdated(
+            new RunnableApplication(
+                updatedApplication.Id,
+                updatedApplication.Running,
+                updatedApplication.RunRequested,
+                updatedApplication.Urls
+            )
+        );
 
         Context.System.EventStream.Publish(DashboardEventRaised.Create(@event));
     }

@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 
 namespace DevDash.Features.Dashboard;
 
-internal record RunnableApplication(string Id, bool Running, ImmutableArray<string> Urls);
+internal record RunnableApplication(string Id, bool Running, bool RunRequested, ImmutableArray<string> Urls);
 
 internal sealed record RunnableApplicationWithActor(
     ApplicationType Type,
@@ -13,4 +13,4 @@ internal sealed record RunnableApplicationWithActor(
     bool RunRequested,
     ImmutableArray<string> Urls,
     IActorRef ActorRef
-) : RunnableApplication(Id, Running, Urls);
+) : RunnableApplication(Id, Running, RunRequested, Urls);

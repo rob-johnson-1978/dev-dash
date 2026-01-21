@@ -51,23 +51,31 @@ internal partial class DashboardProcessRunner
                 return;
             }
 
-            var line = BuildHtmlFromOutput(e.Data);
+            if (_state.DetectStartedViaStdOut != null)
+            {
+                var started = _state.DetectStartedViaStdOut.Invoke(e.Data);
+
+                if (started)
+                {
+                    self.Tell(new RunnableApplicationStarted(_state.ApplicationId));
+                }
+            }
+
+            if (_state.FindUrlInMessageViaStdOut != null)
+            {
+                var url = _state.FindUrlInMessageViaStdOut.Invoke(e.Data);
+
+                if (url != null && !string.IsNullOrWhiteSpace(url))
+                {
+                    self.Tell(new ApplicationUrlDetected(url));
+                }
+            }
+
+            var htmlFormattedLine = BuildHtmlFromOutput(e.Data);
 
             actorSystem.EventStream.Publish(
-                DashboardEventRaised.Create(new ApplicationOutputLineEmitted(_state.ApplicationId, line))
-            );
-
-            if (_state.FindUrlInMessage == null)
-            {
-                return;
-            }
-
-            var url = _state.FindUrlInMessage.Invoke(line);
-
-            if (url != null && !string.IsNullOrWhiteSpace(url))
-            {
-                self.Tell(new ApplicationUrlDetected(url));
-            }
+                DashboardEventRaised.Create(new ApplicationOutputLineEmitted(_state.ApplicationId, htmlFormattedLine))
+            );            
         };
 
         process.ErrorDataReceived += (sender, e) =>
@@ -102,7 +110,7 @@ internal partial class DashboardProcessRunner
     private void SendUpdateStateCommandToParent()
     {
         Context.Parent.Tell(new UpdateRunnableApplication(
-            new RunnableApplication(_state.ApplicationId, _state.Running, [.. _state.Urls])
+            new RunnableApplication(_state.ApplicationId, _state.Running, _state.RunRequested, [.. _state.Urls])
         ));
     }
 
@@ -504,6 +512,9 @@ internal partial class DashboardProcessRunner
             return string.Join(" ", classes);
         }
     }
+
+    private static bool LogsIndicateDotNetAppHasStarted(string line) =>        
+        line.Contains("Application started. Press Ctrl+C", StringComparison.OrdinalIgnoreCase);
 
     [GeneratedRegex(@"\x1B\[([0-9;]*)m|\x1B\][^\x07]*\x07|\x1B\[[0-9;]*[A-Za-ln-z]")]
     private static partial Regex AnsiCodePattern();

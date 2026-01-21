@@ -24,6 +24,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         {
             case RunDotNetApplication command:
                 {
+                    _state.RunRequested = true;
                     _state.ApplicationId = command.Application.Id;
                     _state.WorkingDirectory = command.Application.WorkingDirectoryPath;
                     _state.FileName = "dotnet";
@@ -31,7 +32,9 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                         ? ["run"]
                         : ["run", "-lp", command.Application.LaunchProfile];
 
-                    _state.FindUrlInMessage = line =>
+                    _state.DetectStartedViaStdOut = LogsIndicateDotNetAppHasStarted;
+
+                    _state.FindUrlInMessageViaStdOut = line =>
                     {
                         // Look for lines like:
                         // Now listening on: https://localhost:5001
@@ -42,7 +45,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                         }
 
                         return null;
-                    };
+                    };                    
 
                     HandleStart();
 
@@ -50,6 +53,8 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 }
             case RunCompose command:
                 {
+                    _state.RunRequested = true;
+
                     _state.ApplicationId = Constants.DockerComposeApplicationId;
 
                     var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), command.ComposeFilePath));

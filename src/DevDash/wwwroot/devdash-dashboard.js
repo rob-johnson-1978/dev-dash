@@ -77,7 +77,18 @@ const addEventListeners = (eventSource) => {
             return;
         }
 
+        if (!data.isBackgroundUpdate) {
+            showMessage(`${data.application.id} is ${data.application.running ? "running" : "stopped"}`);
+        }
+
         runnableApplication.buttonContainerElement.querySelectorAll(".discovered-url").forEach(el => el.remove());
+
+        if (data.application.runRequested) {
+            runnableApplication.startButtonElement.classList.add("disabled");
+            runnableApplication.stopButtonElement.classList.add("disabled");
+            runnableApplication.restartButtonElement.classList.add("disabled");
+            return;
+        }
 
         if (data.application.running) {
             runnableApplication.startButtonElement.classList.add("disabled");
@@ -102,12 +113,6 @@ const addEventListeners = (eventSource) => {
             runnableApplication.stopButtonElement.classList.add("disabled");
             runnableApplication.restartButtonElement.classList.add("disabled");
         }
-
-        if (data.isBackgroundUpdate) {
-            return;
-        }
-
-        showMessage(`${data.application.id} is ${data.application.running ? "running" : "stopped"}`);
     });
 
     eventSource.addEventListener(EVENT_NAMES_APPLICATION_OUTPUT_LINE_EMITTED, (e) => {
