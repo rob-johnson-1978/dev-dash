@@ -45,7 +45,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                         }
 
                         return null;
-                    };                    
+                    };
 
                     HandleStart();
 
@@ -70,6 +70,16 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                     };
 
                     _state.Args = ["compose", "-f", fullPath, "up", "--build", "--force-recreate"];
+
+                    var composeStatusProvider = Context.ActorOf<ComposeStatusProvider>();
+
+                    composeStatusProvider.Tell(
+                        new WaitForComposeStatusToBecomeAvailable(
+                            _state.WorkingDirectory,
+                            command.ComposeFilePath,
+                            command.ComposeType
+                        )
+                    );
 
                     HandleStart();
 
@@ -260,12 +270,12 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         }
 
         _state.ManuallyStopped = false;
-        _state.Running = false;        
+        _state.Running = false;
 
         SendUpdateStateCommandToParent();
 
         Become(Stopped);
 
         Stash.UnstashAll();
-    }    
+    }
 }

@@ -38,6 +38,8 @@ internal sealed record ProcessExited;
 
 internal sealed record ApplicationUrlDetected(string Url);
 
+internal sealed record WaitForComposeStatusToBecomeAvailable(string WorkingDirectory, string ComposeFilePath, ComposeType ComposeType);
+
 
 /* dashboard - dotnet application */
 
