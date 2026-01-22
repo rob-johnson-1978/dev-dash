@@ -222,7 +222,8 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                                         .Tell(
                                             new RunCompose(
                                                 configuration.ComposeConfiguration!.FilePath,
-                                                configuration.ComposeConfiguration!.ComposeType
+                                                configuration.ComposeConfiguration!.ComposeType,
+                                                configuration.ComposeConfiguration!.CheckTimeoutInSeconds
                                             )
                                         );
 

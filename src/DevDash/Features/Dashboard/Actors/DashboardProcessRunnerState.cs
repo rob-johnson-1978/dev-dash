@@ -15,4 +15,6 @@ internal sealed class DashboardProcessRunnerState
     public HashSet<string> Urls { get; } = [];
     public bool Running { get; set; }
     public bool RunRequested { get; set; }
+    public Action OnStarted { get; set; } = () => { };
+    public string FullComposePath { get; set; } = string.Empty;
 }

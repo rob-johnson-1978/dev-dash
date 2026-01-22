@@ -38,16 +38,28 @@ internal sealed record ProcessExited;
 
 internal sealed record ApplicationUrlDetected(string Url);
 
-internal sealed record WaitForComposeStatusToBecomeAvailable(string WorkingDirectory, string ComposeFilePath, ComposeType ComposeType);
-
-
 /* dashboard - dotnet application */
 
 internal sealed record RunDotNetApplication(DotNetApplication Application);
 
 /* dashboard - compose */
 
-internal sealed record RunCompose(string ComposeFilePath, ComposeType ComposeType);
+internal sealed record RunCompose(string ComposeFilePath, ComposeType ComposeType, int CheckTimeoutInSeconds);
+
+internal sealed record WaitForComposeStatusToBecomeAvailable(
+    string WorkingDirectory,
+    string FullComposePath,
+    ComposeType ComposeType,
+    int CheckTimeoutInSeconds
+);
+
+internal sealed record CheckComposeStatus;
+
+internal sealed record ComposeStatusCheckTimedOut;
+
+internal sealed record ComposeStarted;
+
+internal sealed record ComposeStartFailed;
 
 /* dashboard events */
 

@@ -8,9 +8,9 @@ public sealed class DevDashConfiguration
 {
     /* public */
 
-    public DevDashConfiguration AddCompose(int startupOrder, string pathToFile, ComposeType composeType)
+    public DevDashConfiguration AddCompose(int startupOrder, string pathToFile, ComposeType composeType, int checkTimeoutInSeconds = 30)
     {
-        ComposeConfiguration = new ComposeConfiguration(startupOrder, pathToFile, composeType);
+        ComposeConfiguration = new ComposeConfiguration(startupOrder, pathToFile, composeType, checkTimeoutInSeconds);
 
         return this;
     }

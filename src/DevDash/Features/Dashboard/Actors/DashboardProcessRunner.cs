@@ -57,9 +57,9 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     _state.ApplicationId = Constants.DockerComposeApplicationId;
 
-                    var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), command.ComposeFilePath));
+                    _state.FullComposePath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), command.ComposeFilePath));
 
-                    _state.WorkingDirectory = Path.GetDirectoryName(fullPath)
+                    _state.WorkingDirectory = Path.GetDirectoryName(_state.FullComposePath)
                         ?? throw new InvalidOperationException("Could not determine working directory");
 
                     _state.FileName = command.ComposeType switch
@@ -69,17 +69,21 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                         _ => throw new NotImplementedException()
                     };
 
-                    _state.Args = ["compose", "-f", fullPath, "up", "--build", "--force-recreate"];
+                    _state.Args = ["compose", "-f", _state.FullComposePath, "up", "--build", "--force-recreate"];
 
-                    var composeStatusProvider = Context.ActorOf<ComposeStatusProvider>();
+                    _state.OnStarted = () =>
+                    {
+                        var composeStatusProvider = Context.ActorOf<ComposeStatusProvider>();
 
-                    composeStatusProvider.Tell(
-                        new WaitForComposeStatusToBecomeAvailable(
-                            _state.WorkingDirectory,
-                            command.ComposeFilePath,
-                            command.ComposeType
-                        )
-                    );
+                        composeStatusProvider.Tell(
+                            new WaitForComposeStatusToBecomeAvailable(
+                                _state.WorkingDirectory,
+                                _state.FullComposePath,
+                                command.ComposeType,
+                                command.CheckTimeoutInSeconds
+                            )
+                        );
+                    };
 
                     HandleStart();
 
@@ -153,6 +157,16 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     SendUpdateStateCommandToParent();
 
+                    break;
+                }
+            case ComposeStarted:
+                {
+                    Context.Parent.Tell(new RunnableApplicationStarted(_state.ApplicationId));
+                    break;
+                }
+            case ComposeStartFailed:
+                {
+                    PublishActionLogMessage("Compose failed to start, or start could not be detected. Please fix issues and restart the application.");
                     break;
                 }
             default:
@@ -231,6 +245,8 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         RunTask(async () => await StartProcess(_state.Process));
 
         _state.Running = true;
+
+        _state.OnStarted();
 
         PublishActionLogMessage("Process started. Waiting for output...");
 

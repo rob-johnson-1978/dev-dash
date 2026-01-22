@@ -14,3 +14,5 @@ internal sealed record RunnableApplicationWithActor(
     ImmutableArray<string> Urls,
     IActorRef ActorRef
 ) : RunnableApplication(Id, Running, RunRequested, Urls);
+
+internal sealed record ComposeCheckStatusResult(bool Success);
