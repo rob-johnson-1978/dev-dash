@@ -5,7 +5,9 @@ Simple dev dashboard
 # Backlog
 - [x] _Try hex1b (if not, figure out colouring of text in console somehow)_
 
-- [ ] Order of startup / dependencies
+- [x] Order of startup / dependencies
+
+- [ ] Kill and restart all button
 
 - [ ] Custom commands (eg watch vs not)
 

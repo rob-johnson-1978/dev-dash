@@ -2,10 +2,16 @@
 
 internal sealed record DotNetApplication
 {
-    public DotNetApplication(int startupOrder, string id, string pathToFolder, string? launchProfile)
+    public DotNetApplication(
+        int startupOrder, 
+        string id, 
+        string pathToFolder, 
+        string? startDetectionPattern = null,
+        string? launchProfile = null)
     {
         StartupOrder = startupOrder;
         Id = id;
+        StartDetectionPattern = startDetectionPattern;
         LaunchProfile = launchProfile;
         WorkingDirectoryPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), pathToFolder));
     }
@@ -15,6 +21,8 @@ internal sealed record DotNetApplication
     public int StartupOrder { get; }
 
     public string? LaunchProfile { get; }
+
+    public string? StartDetectionPattern { get; }
 
     public string WorkingDirectoryPath { get; }
 }

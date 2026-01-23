@@ -78,19 +78,23 @@ const addEventListeners = (eventSource) => {
         }
 
         if (!data.isBackgroundUpdate) {
-            showMessage(`${data.application.id} is ${data.application.running ? "running" : "stopped"}`);
+
+            var updateJson = JSON.stringify(data.application, null, 4);
+            var prettyJson = updateJson.replace(/ /g, "&nbsp;").replace(/\n/g, "<br>");
+
+            showMessage(prettyJson, "code");
         }
 
         runnableApplication.buttonContainerElement.querySelectorAll(".discovered-url").forEach(el => el.remove());
 
-        if (data.application.runRequested) {
+        if (data.application.runStatus === ENUMS_RUNSTATUS_NEVER_STARTED || data.application.runStatus === ENUMS_RUNSTATUS_START_REQUESTED) {
             runnableApplication.startButtonElement.classList.add("disabled");
             runnableApplication.stopButtonElement.classList.add("disabled");
             runnableApplication.restartButtonElement.classList.add("disabled");
             return;
         }
 
-        if (data.application.running) {
+        if (data.application.runStatus === ENUMS_RUNSTATUS_STARTED) {
             runnableApplication.startButtonElement.classList.add("disabled");
             runnableApplication.stopButtonElement.classList.remove("disabled");
             runnableApplication.restartButtonElement.classList.remove("disabled");

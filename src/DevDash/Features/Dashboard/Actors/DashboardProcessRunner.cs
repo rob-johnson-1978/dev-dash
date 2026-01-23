@@ -24,7 +24,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         {
             case RunDotNetApplication command:
                 {
-                    _state.RunRequested = true;
+                    _state.RunStatus = RunStatus.StartRequested;
                     _state.ApplicationId = command.Application.Id;
                     _state.WorkingDirectory = command.Application.WorkingDirectoryPath;
                     _state.FileName = "dotnet";
@@ -32,20 +32,25 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                         ? ["run"]
                         : ["run", "-lp", command.Application.LaunchProfile];
 
-                    _state.DetectStartedViaStdOut = LogsIndicateDotNetAppHasStarted;
-
-                    _state.FindUrlInMessageViaStdOut = line =>
+                    if (command.Application.StartDetectionPattern != null)
                     {
-                        // Look for lines like:
-                        // Now listening on: https://localhost:5001
-                        var match = FindUrlInDotNetMessagePattern().Match(line);
-                        if (match.Success && match.Groups.Count > 1)
-                        {
-                            return match.Groups[1].Value;
-                        }
+                        _state.DetectStartedViaStdOut =
+                            line => line.Contains(command.Application.StartDetectionPattern, StringComparison.OrdinalIgnoreCase);
+                    }
 
-                        return null;
-                    };
+                    if (command.Application.LaunchProfile != null)
+                    {
+                        _state.FindUrlViaStdOut = line =>
+                        {
+                            var match = FindUrlInDotNetMessagePattern().Match(line);
+                            if (match.Success && match.Groups.Count > 1)
+                            {
+                                return match.Groups[1].Value;
+                            }
+
+                            return null;
+                        };
+                    }
 
                     HandleStart();
 
@@ -53,7 +58,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 }
             case RunCompose command:
                 {
-                    _state.RunRequested = true;
+                    _state.RunStatus = RunStatus.StartRequested;
 
                     _state.ApplicationId = Constants.DockerComposeApplicationId;
 
@@ -155,13 +160,18 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     _state.Urls.Add(lowerUrl);
 
+                    ProcessApplicationStarted(Context.Parent, _state);
+
                     SendUpdateStateCommandToParent();
 
                     break;
                 }
             case ComposeStarted:
                 {
+                    _logger.Info("Compose started, sending {0} to parent", nameof(RunnableApplicationStarted));
+
                     Context.Parent.Tell(new RunnableApplicationStarted(_state.ApplicationId));
+
                     break;
                 }
             case ComposeStartFailed:
@@ -244,13 +254,9 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
         RunTask(async () => await StartProcess(_state.Process));
 
-        _state.Running = true;
-
         _state.OnStarted();
 
         PublishActionLogMessage("Process started. Waiting for output...");
-
-        SendUpdateStateCommandToParent();
 
         Become(Started);
 
@@ -268,7 +274,8 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
         PublishActionLogMessage("Process stopped");
 
-        _state.Running = false;
+        _state.RunStatus = RunStatus.Stopped;
+        _state.Urls.Clear();
 
         SendUpdateStateCommandToParent();
 
@@ -286,7 +293,8 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         }
 
         _state.ManuallyStopped = false;
-        _state.Running = false;
+        _state.RunStatus = RunStatus.Stopped;
+        _state.Urls.Clear();
 
         SendUpdateStateCommandToParent();
 

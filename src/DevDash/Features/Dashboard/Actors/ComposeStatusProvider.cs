@@ -40,9 +40,9 @@ internal class ComposeStatusProvider : UntypedActor, IWithTimers
                 }
             case CheckComposeStatus:
                 {
-                    var statusResult = GetStatusCheckResult();
+                    var healthOk = GetStatusCheckResult();
 
-                    if (statusResult.Success)
+                    if (healthOk)
                     {
                         Context.Parent.Tell(new ComposeStarted());
 
@@ -77,7 +77,7 @@ internal class ComposeStatusProvider : UntypedActor, IWithTimers
         }
     }
 
-    private ComposeCheckStatusResult GetStatusCheckResult()
+    private bool GetStatusCheckResult()
     {
         var isDocker = _state.ComposeType == ComposeType.Docker;
 
@@ -106,7 +106,7 @@ internal class ComposeStatusProvider : UntypedActor, IWithTimers
             {
                 _logger.Error("Failed to start process for compose status check.");
 
-                return new ComposeCheckStatusResult(false);
+                return false;
             }
 
             var outputTask = process.StandardOutput.ReadToEndAsync();
@@ -120,7 +120,7 @@ internal class ComposeStatusProvider : UntypedActor, IWithTimers
             if (process.ExitCode != 0)
             {
                 _logger.Error("Compose status check process exited with code {0}. Error output: {1}", process.ExitCode, errorOutput);
-                return new ComposeCheckStatusResult(false);
+                return false;
             }
 
             var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -135,25 +135,27 @@ internal class ComposeStatusProvider : UntypedActor, IWithTimers
                 }
 
                 using var doc = JsonDocument.Parse(line);
+
                 var root = doc.RootElement;
 
                 var state = root.GetProperty("State").GetString();
+
                 if (state is not "running")
                 {
                     _logger.Info("Compose service is not running. State: {0}", state);
 
-                    return new ComposeCheckStatusResult(false);
+                    return false;
                 }
 
                 if (root.TryGetProperty("Health", out var healthElement))
                 {
                     var health = healthElement.GetString();
 
-                    if (!string.IsNullOrEmpty(health) && health is not "healthy")
+                    if (!string.IsNullOrWhiteSpace(health) && health is not "healthy")
                     {
                         _logger.Info("Compose service health is not healthy. Health: {0}", health);
 
-                        return new ComposeCheckStatusResult(false);
+                        return false;
                     }
                 }
             }
@@ -163,17 +165,20 @@ internal class ComposeStatusProvider : UntypedActor, IWithTimers
             if (ok)
             {
                 _logger.Info("All compose services are running and healthy.");
+            }
+            else
+            {
 
-                return new ComposeCheckStatusResult(ok);
+                _logger.Info("No compose services found in compose status output.");
             }
 
-            _logger.Info("No compose services found in compose status output.");
-
-            return new ComposeCheckStatusResult(false);
+            return ok;
         }
-        catch
+        catch (Exception ex)
         {
-            return new ComposeCheckStatusResult(false);
+            _logger.Error(ex, "Exception occurred while checking compose status.");
+
+            return false;
         }
     }
 }

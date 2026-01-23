@@ -13,7 +13,9 @@ internal partial class DashboardProcessRunner
     private Process CreateProcess()
     {
         var actorSystem = Context.System;
+        var parent = Context.Parent;
         var self = Self;
+        var state = _state;
 
         var processStartInfo = new ProcessStartInfo
         {
@@ -23,20 +25,19 @@ internal partial class DashboardProcessRunner
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            Environment =
+            {
+                // Force .NET apps to emit ANSI codes even when stdout is redirected
+                ["DOTNET_SYSTEM_CONSOLE_ALLOW_ANSI_COLOR_REDIRECTION"] = "true",
+                // For older .NET Core versions
+                ["DOTNET_ConsoleColors"] = "true",
+                // For Node.js/npm tools
+                ["FORCE_COLOR"] = "1",
+                // For many CLI tools
+                ["CLICOLOR_FORCE"] = "1"
+            }
         };
-
-        // Force .NET apps to emit ANSI codes even when stdout is redirected
-        processStartInfo.Environment["DOTNET_SYSTEM_CONSOLE_ALLOW_ANSI_COLOR_REDIRECTION"] = "true";
-
-        // For older .NET Core versions
-        processStartInfo.Environment["DOTNET_ConsoleColors"] = "true";
-
-        // For Node.js/npm tools
-        processStartInfo.Environment["FORCE_COLOR"] = "1";
-
-        // For many CLI tools
-        processStartInfo.Environment["CLICOLOR_FORCE"] = "1";
 
         var process = new Process
         {
@@ -53,17 +54,17 @@ internal partial class DashboardProcessRunner
 
             if (_state.DetectStartedViaStdOut != null)
             {
-                var started = _state.DetectStartedViaStdOut.Invoke(e.Data);
+                var started = _state.DetectStartedViaStdOut(e.Data);
 
                 if (started)
                 {
-                    self.Tell(new RunnableApplicationStarted(_state.ApplicationId));
+                    ProcessApplicationStarted(parent, state);
                 }
             }
 
-            if (_state.FindUrlInMessageViaStdOut != null)
+            if (_state.FindUrlViaStdOut != null)
             {
-                var url = _state.FindUrlInMessageViaStdOut.Invoke(e.Data);
+                var url = _state.FindUrlViaStdOut(e.Data);
 
                 if (url != null && !string.IsNullOrWhiteSpace(url))
                 {
@@ -75,7 +76,7 @@ internal partial class DashboardProcessRunner
 
             actorSystem.EventStream.Publish(
                 DashboardEventRaised.Create(new ApplicationOutputLineEmitted(_state.ApplicationId, htmlFormattedLine))
-            );            
+            );
         };
 
         process.ErrorDataReceived += (sender, e) =>
@@ -110,8 +111,20 @@ internal partial class DashboardProcessRunner
     private void SendUpdateStateCommandToParent()
     {
         Context.Parent.Tell(new UpdateRunnableApplication(
-            new RunnableApplication(_state.ApplicationId, _state.Running, _state.RunRequested, [.. _state.Urls])
+            new RunnableApplication(_state.ApplicationId, _state.RunStatus, [.. _state.Urls])
         ));
+    }
+
+    private static void ProcessApplicationStarted(IActorRef parent, DashboardProcessRunnerState state)
+    {
+        if (state.RunStatus == RunStatus.Started)
+        {
+            return;
+        }
+
+        state.RunStatus = RunStatus.Started;
+
+        parent.Tell(new RunnableApplicationStarted(state.ApplicationId));
     }
 
     private void PublishActionLogMessage(string message)
@@ -512,9 +525,6 @@ internal partial class DashboardProcessRunner
             return string.Join(" ", classes);
         }
     }
-
-    private static bool LogsIndicateDotNetAppHasStarted(string line) =>        
-        line.Contains("Application started. Press Ctrl+C", StringComparison.OrdinalIgnoreCase);
 
     [GeneratedRegex(@"\x1B\[([0-9;]*)m|\x1B\][^\x07]*\x07|\x1B\[[0-9;]*[A-Za-ln-z]")]
     private static partial Regex AnsiCodePattern();

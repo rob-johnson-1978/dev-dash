@@ -3,16 +3,13 @@ using System.Collections.Immutable;
 
 namespace DevDash.Features.Dashboard;
 
-internal record RunnableApplication(string Id, bool Running, bool RunRequested, ImmutableArray<string> Urls);
+internal record RunnableApplication(string Id, RunStatus RunStatus, ImmutableArray<string> Urls);
 
 internal sealed record RunnableApplicationWithActor(
     ApplicationType Type,
     int StartupOrder,
     string Id,
-    bool Running,
-    bool RunRequested,
+    RunStatus RunStatus,
     ImmutableArray<string> Urls,
     IActorRef ActorRef
-) : RunnableApplication(Id, Running, RunRequested, Urls);
-
-internal sealed record ComposeCheckStatusResult(bool Success);
+) : RunnableApplication(Id, RunStatus, Urls);

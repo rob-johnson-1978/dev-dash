@@ -8,18 +8,35 @@ public sealed class DevDashConfiguration
 {
     /* public */
 
-    public DevDashConfiguration AddCompose(int startupOrder, string pathToFile, ComposeType composeType, int checkTimeoutInSeconds = 30)
+    public DevDashConfiguration AddCompose(int startupOrder, string pathToFile, ComposeType composeType, int checkTimeoutInSeconds = 60)
     {
         ComposeConfiguration = new ComposeConfiguration(startupOrder, pathToFile, composeType, checkTimeoutInSeconds);
 
         return this;
     }
 
-    public DevDashConfiguration AddDotNetApplication(int startupOrder, string id, string pathToFolder, string? launchProfile = null)
+    public DevDashConfiguration AddDotNetWebApplication(
+        int startupOrder,
+        string id, 
+        string pathToFolder,
+        string launchProfile)
     {
         var lowerId = id.ToLower();
 
-        DotNetApplications[lowerId] = new DotNetApplication(startupOrder, lowerId, pathToFolder, launchProfile);
+        DotNetApplications[lowerId] = new DotNetApplication(startupOrder, lowerId, pathToFolder, startDetectionPattern: null, launchProfile);
+
+        return this;
+    }
+
+    public DevDashConfiguration AddDotNetApplication(
+        int startupOrder,
+        string id,
+        string pathToFolder,
+        string startDetectionPattern = "application started")
+    {
+        var lowerId = id.ToLower();
+
+        DotNetApplications[lowerId] = new DotNetApplication(startupOrder, lowerId, pathToFolder, startDetectionPattern, launchProfile: null);
 
         return this;
     }

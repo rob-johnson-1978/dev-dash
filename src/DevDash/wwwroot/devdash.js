@@ -32,13 +32,13 @@ const showMessage = (message, status = "default") => {
     messageElement.className = "message";
     messageElement.classList.add(status);
 
-    messageElement.textContent = message;
+    messageElement.innerHTML = message;
 
     messageContainer.appendChild(messageElement);
 
     setTimeout(() => {
         messageElement.remove();
-    }, 5000);
+    }, 10000);
 }
 
 const closeAllModals = () => {

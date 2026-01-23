@@ -140,3 +140,10 @@ h1 {
         #message_container .message.error {
             border-color: #FF4500;
         }
+
+        #message_container .message.code {
+            font-family: monospace;
+            background: #333;
+            border-color: #555;
+            font-size: 1.2rem;
+        }

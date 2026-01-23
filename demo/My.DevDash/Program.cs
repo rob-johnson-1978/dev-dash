@@ -7,8 +7,8 @@ builder.UseDevDash(configuration =>
     configuration        
         .AddCompose(0, "../compose.yaml", ComposeType.Podman)
         .AddDotNetApplication(0, "Console-App-1", "../My.ConsoleApp")
-        .AddDotNetApplication(1, "Web-Api-1", "../My.WebApi", launchProfile: "http1")
-        .AddDotNetApplication(2, "Web-Api-2", "../My.WebApi", launchProfile: "http2");
+        .AddDotNetWebApplication(1, "Web-Api-1", "../My.WebApi", launchProfile: "http1")
+        .AddDotNetWebApplication(2, "Web-Api-2", "../My.WebApi", launchProfile: "http2");
 });
 
 builder
