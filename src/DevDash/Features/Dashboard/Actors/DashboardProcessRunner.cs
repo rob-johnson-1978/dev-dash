@@ -1,6 +1,7 @@
 ﻿using Akka.Actor;
 using Akka.Event;
 using DevDash.Infastructure;
+using Google.Protobuf.WellKnownTypes;
 
 namespace DevDash.Features.Dashboard.Actors;
 
@@ -248,6 +249,10 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
     private void HandleStart()
     {
+        _state.RunStatus = RunStatus.StartRequested; // todo: make this immutable so that it can only be done via SendUpdateStateCommandToParent
+
+        SendUpdateStateCommandToParent();
+
         PublishActionLogMessage("Starting process");
 
         _state.Process = CreateProcess();

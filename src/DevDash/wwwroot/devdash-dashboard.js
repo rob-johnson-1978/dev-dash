@@ -69,32 +69,32 @@ const addEventListeners = (eventSource) => {
         }
     });
 
-    eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATION_UPDATED, (e) => {
+    eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATION_STATUS_UPDATED, (e) => {
         const data = JSON.parse(e.data);
-        const runnableApplication = runnableApplications[data.application.id];
+        const runnableApplication = runnableApplications[data.applicationId];
 
-        if (!runnableApplication || !data || !data.application) {
+        if (!runnableApplication) {
             return;
         }
 
-        if (!data.isBackgroundUpdate) {
+        //if (!data.isBackgroundUpdate) {
 
-            var updateJson = JSON.stringify(data.application, null, 4);
-            var prettyJson = updateJson.replace(/ /g, "&nbsp;").replace(/\n/g, "<br>");
+        //    var updateJson = JSON.stringify(data.application, null, 4);
+        //    var prettyJson = updateJson.replace(/ /g, "&nbsp;").replace(/\n/g, "<br>");
 
-            showMessage(prettyJson, "code");
-        }
+        //    showMessage(prettyJson, "code");
+        //}
 
         runnableApplication.buttonContainerElement.querySelectorAll(".discovered-url").forEach(el => el.remove());
 
-        if (data.application.runStatus === ENUMS_RUNSTATUS_NEVER_STARTED || data.application.runStatus === ENUMS_RUNSTATUS_START_REQUESTED) {
+        if (data.status === ENUMS_RUNSTATUS_NEVER_STARTED || data.status === ENUMS_RUNSTATUS_START_REQUESTED) {
             runnableApplication.startButtonElement.classList.add("disabled");
             runnableApplication.stopButtonElement.classList.add("disabled");
             runnableApplication.restartButtonElement.classList.add("disabled");
             return;
         }
 
-        if (data.application.runStatus === ENUMS_RUNSTATUS_STARTED) {
+        if (data.status === ENUMS_RUNSTATUS_STARTED) {
             runnableApplication.startButtonElement.classList.add("disabled");
             runnableApplication.stopButtonElement.classList.remove("disabled");
             runnableApplication.restartButtonElement.classList.remove("disabled");

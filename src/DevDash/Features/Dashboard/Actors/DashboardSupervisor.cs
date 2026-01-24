@@ -100,6 +100,8 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 {
                     _logger.Info("Starting runnable applications...");
 
+                    HandlePublishUpdateForAllRunnableApplications();
+
                     RunTask(async () => await Task.Delay(2000));
 
                     Context.System.EventStream.Publish(DashboardEventRaised.Create(new RunnableApplicationsStarting()));
@@ -137,11 +139,6 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
             case UpdateRunnableApplication command:
                 {
                     HandleUpdateRunnableApplication(command);
-                    break;
-                }
-            case PublishUpdateForAllRunnableApplications:
-                {
-                    HandlePublishUpdateForAllRunnableApplications();
                     break;
                 }
             case IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted:
@@ -333,7 +330,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         {
             Context.System.EventStream.Publish(
                 DashboardEventRaised.Create(
-                    new RunnableApplicationUpdated(app, IsBackgroundUpdate: true)
+                    new RunnableApplicationStatusUpdated(app.Id, app.RunStatus)
                 )
             );
         }

@@ -92,7 +92,9 @@ internal sealed record DashboardEventRaised<TEvent> : IDashboardEventRaised
 
 internal sealed record RunnableApplicationsStarting;
 
-internal sealed record RunnableApplicationUpdated(RunnableApplication Application, bool IsBackgroundUpdate = false);
+internal sealed record RunnableApplicationStatusUpdated(string ApplicationId, RunStatus Status);
+
+internal sealed record MessageAreaMessagePublished(string Message, string Status = "default");
 
 internal sealed record ApplicationOutputLineEmitted(string Id, string Line);
 
