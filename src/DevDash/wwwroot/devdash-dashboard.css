@@ -84,12 +84,12 @@
 #dashboard_global_actions {
     position: fixed;
     bottom: 1rem;
-    left: 4rem;
+    left: 3.5rem;
     z-index: 1000;
 }
 
     #dashboard_global_actions .material-symbols-outlined {
-        font-size: 48px;
+        font-size: 40px;
     }
 /* ANSI text styles */
 .ansi-bold {
