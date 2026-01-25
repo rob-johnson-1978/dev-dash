@@ -126,6 +126,11 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                     HandleGetRunnableApplications();
                     break;
                 }
+            case StartDashboard:
+                {
+                    HandleStartDashboard();
+                    break;
+                }
             default:
                 {
                     Stash.Stash();
@@ -146,6 +151,16 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
             case UpdateRunnableApplication command:
                 {
                     HandleUpdateRunnableApplication(command);
+                    break;
+                }
+            case StopDashboard:
+                {
+                    HandleStopDashboard();
+                    break;
+                }
+            case RestartDashboard:
+                {
+                    HandleRestartDashboard();
                     break;
                 }
             case IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted:
@@ -263,6 +278,11 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                     HandleUpdateRunnableApplication(command);
                     break;
                 }
+            case RestartDashboard:
+                {
+                    HandleRestartDashboard();
+                    break;
+                }
             case ICommmandRunnableApplicationsToChangeState command:
                 {
                     if (!_state.RunnableApplications.TryGetValue(command.Id, out var runnableApplication))
@@ -330,5 +350,56 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 )
             );
         }
+    }
+
+    private void HandleStartDashboard()
+    {
+        _logger.Info("Starting dashboard after UI command...");
+
+        Stash.ClearStash();
+
+        Self.Tell(new StartRunnableApplications());
+    }
+
+    private void HandleStopDashboard()
+    {
+        _logger.Info("Stopping dashboard after UI command...");
+
+        Context.System.EventStream.Publish(
+            DashboardEventRaised.Create(
+                new RunnableApplicationsStopped()
+            )
+        );
+
+        foreach (var app in _state.RunnableApplications.Values)
+        {
+            app.ActorRef.Tell(new StopRunnableApplication(app.Id));
+        }
+
+        Stash.ClearStash();
+
+        Become(Configured);
+    }
+
+    private void HandleRestartDashboard()
+    {
+        _logger.Info("Restarting dashboard after UI command...");
+
+        Context.System.EventStream.Publish(
+            DashboardEventRaised.Create(
+                new RunnableApplicationsRestarting()
+            )
+        );
+
+        foreach (var app in _state.RunnableApplications.Values)
+        {
+            app.ActorRef.Tell(new StopRunnableApplication(app.Id));
+        }
+
+        Stash.ClearStash();
+
+        Become(Configured);
+
+        Self.Tell(new StartRunnableApplications());
     }
 }

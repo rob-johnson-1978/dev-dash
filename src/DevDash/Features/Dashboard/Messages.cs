@@ -98,6 +98,10 @@ internal sealed record DashboardEventRaised<TEvent> : IDashboardEventRaised
 
 internal sealed record RunnableApplicationsStarting;
 
+internal sealed record RunnableApplicationsStopped;
+
+internal sealed record RunnableApplicationsRestarting;
+
 internal sealed record RunnableApplicationStatusUpdated(string ApplicationId, RunStatus Status, ImmutableArray<string> Urls);
 
 internal sealed record MessageAreaMessagePublished(string Message, string Status = "default");

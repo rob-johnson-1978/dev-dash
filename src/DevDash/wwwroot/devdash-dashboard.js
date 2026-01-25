@@ -2,6 +2,10 @@
 
 let runnableApplications = {};
 
+const globalStartButton = document.getElementById("global_start");
+const globalStopButton = document.getElementById("global_stop");
+const globalRestartButton = document.getElementById("global_restart");
+
 document.addEventListener("DevDashLoaded", () => {
 
     runnableApplications = buildRunnableApplications();
@@ -79,6 +83,30 @@ const addEventListeners = (eventSource) => {
         for (const applicationId in runnableApplications) {
             runnableApplications[applicationId].consoleOutputElement.innerHTML = "";
         }
+
+        globalStartButton.classList.add("disabled");
+        globalStopButton.classList.remove("disabled");
+        globalRestartButton.classList.remove("disabled");        
+    });
+
+    eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATIONS_STOPPED, () => {
+        for (const applicationId in runnableApplications) {
+            runnableApplications[applicationId].consoleOutputElement.innerHTML = "";
+        }
+
+        globalStartButton.classList.remove("disabled");
+        globalStopButton.classList.add("disabled");
+        globalRestartButton.classList.add("disabled");
+    });
+
+    eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATIONS_RESTARTING, () => {
+        for (const applicationId in runnableApplications) {
+            runnableApplications[applicationId].consoleOutputElement.innerHTML = "";
+        }
+
+        globalStartButton.classList.add("disabled");
+        globalStopButton.classList.remove("disabled");
+        globalRestartButton.classList.remove("disabled");
     });
 
     eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATION_STATUS_UPDATED, (e) => {

@@ -125,10 +125,11 @@ ul, ol {
         color: #ddd;
         padding: 1rem;
         border: 1px solid #ff8c00;
+        border-radius: 4px;
         box-shadow: 0 0 10px rgba(0,0,0,0.5);
         width: 300px;
         word-wrap: break-word;
-        font-size: 0.9rem;
+        font-size: 1rem;
     }
 
         #message_container .message.success {

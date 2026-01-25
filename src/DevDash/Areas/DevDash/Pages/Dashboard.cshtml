@@ -42,13 +42,16 @@
     }
 </div>
 <div id="dashboard_global_actions">
-    <span class="button disabled material-symbols-outlined"
+    <span id="global_start"
+          class="button disabled material-symbols-outlined"
           onclick="sendDashboardCommand('start-dashboard')"
           title="Start Dashboard">play_circle</span>
-    <span class="button disabled material-symbols-outlined"
+    <span id="global_stop"
+          class="button disabled material-symbols-outlined"
           onclick="sendDashboardCommand('stop-dashboard')"
           title="Stop Dashboard">stop_circle</span>
-    <span class="button disabled material-symbols-outlined" 
+    <span id="global_restart"
+          class="button disabled material-symbols-outlined"
           onclick="sendDashboardCommand('restart-dashboard')"
           title="Restart Dashboard">settings_backup_restore</span>
 </div>
@@ -56,6 +59,8 @@
 @section Scripts {
     <script type="text/javascript">
         window.EVENT_NAMES_RUNNABLE_APPLICATIONS_STARTING = '@nameof(RunnableApplicationsStarting)';
+        window.EVENT_NAMES_RUNNABLE_APPLICATIONS_STOPPED = '@nameof(RunnableApplicationsStopped)';
+        window.EVENT_NAMES_RUNNABLE_APPLICATIONS_RESTARTING = '@nameof(RunnableApplicationsRestarting)';
         window.EVENT_NAMES_RUNNABLE_APPLICATION_STATUS_UPDATED = '@nameof(RunnableApplicationStatusUpdated)';
         window.EVENT_NAMES_MESSAGE_AREA_MESSAGE_PUBLISHED = '@nameof(MessageAreaMessagePublished)';
         window.EVENT_NAMES_APPLICATION_OUTPUT_LINE_EMITTED = '@nameof(ApplicationOutputLineEmitted)';
