@@ -28,7 +28,7 @@
 
     .runnable-application-header > h2 {
         flex: 1;
-        font-size:2.3rem;
+        font-size: 2.3rem;
     }
 
 .runnable-application-header-buttons {
@@ -81,6 +81,16 @@
     word-break: break-word;
 }
 
+#dashboard_global_actions {
+    position: fixed;
+    bottom: 1rem;
+    left: 4rem;
+    z-index: 1000;
+}
+
+    #dashboard_global_actions .material-symbols-outlined {
+        font-size: 48px;
+    }
 /* ANSI text styles */
 .ansi-bold {
     font-weight: bold;

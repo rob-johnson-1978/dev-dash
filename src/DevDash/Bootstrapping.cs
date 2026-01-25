@@ -85,9 +85,10 @@ public static class Bootstrapping
 
             /* devdash */
 
-            app.MapGet("/devdash/sse", Endpoints.HandleSseRequest);
-            app.MapPost("/devdash/command/{command}/{applicationId}", Endpoints.HandleCommand);        
-            
+            app.MapGet("/devdash/dashboard/event-stream", Endpoints.HandleEventStreamRequest);
+            app.MapPost("/devdash/dashboard/{command}", Endpoints.HandleCommand);
+            app.MapPost("/devdash/dashboard/application/{applicationId}/{command}", Endpoints.HandleApplicationCommand);
+
             return app;
         }
     }

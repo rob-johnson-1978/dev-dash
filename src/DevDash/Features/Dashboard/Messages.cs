@@ -38,6 +38,12 @@ internal sealed record ProcessExited;
 
 internal sealed record ApplicationUrlDetected(string Url);
 
+internal sealed record StartDashboard;
+
+internal sealed record StopDashboard;
+
+internal sealed record RestartDashboard;
+
 /* dashboard - dotnet application */
 
 internal sealed record RunDotNetApplication(DotNetApplication Application);

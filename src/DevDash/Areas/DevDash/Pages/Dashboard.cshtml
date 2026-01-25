@@ -15,13 +15,13 @@
                 <h2>@app.Id</h2>
                 <div class="runnable-application-header-buttons">
                     <span class="button start disabled material-symbols-outlined"
-                          onclick="sendCommand('@app.Id', 'start-application')"
+                          onclick="sendDashboardApplicationCommand('@app.Id', 'start-application')"
                           title="Start application">play_circle</span>
                     <span class="button stop disabled material-symbols-outlined"
-                          onclick="sendCommand('@app.Id', 'stop-application')"
+                          onclick="sendDashboardApplicationCommand('@app.Id', 'stop-application')"
                           title="Stop application">stop_circle</span>
                     <span class="button restart disabled material-symbols-outlined"
-                          onclick="sendCommand('@app.Id', 'restart-application')"
+                          onclick="sendDashboardApplicationCommand('@app.Id', 'restart-application')"
                           title="Restart application">settings_backup_restore</span>
                     <span class="button clear-logs material-symbols-outlined"
                           onclick="clearLogs('@app.Id')"
@@ -40,6 +40,17 @@
             <div class="runnable-application-console-output"><pre><code></code></pre></div>
         </div>
     }
+</div>
+<div id="dashboard_global_actions">
+    <span class="button disabled material-symbols-outlined"
+          onclick="sendDashboardCommand('start-dashboard')"
+          title="Start Dashboard">play_circle</span>
+    <span class="button disabled material-symbols-outlined"
+          onclick="sendDashboardCommand('stop-dashboard')"
+          title="Stop Dashboard">stop_circle</span>
+    <span class="button disabled material-symbols-outlined" 
+          onclick="sendDashboardCommand('restart-dashboard')"
+          title="Restart Dashboard">settings_backup_restore</span>
 </div>
 
 @section Scripts {

@@ -11,6 +11,18 @@ document.addEventListener("DevDashLoaded", () => {
 
 /* exposed functions */
 
+const sendDashboardCommand = (command) => {
+    fetch(`/devdash/dashboard/${command}`, {
+        method: "POST"
+    });
+}
+
+const sendDashboardApplicationCommand = (applicationId, command) => {
+    fetch(`/devdash/dashboard/application/${applicationId}/${command}`, {
+        method: "POST"
+    });
+}
+
 const clearLogs = (applicationId) => {
     var runnableApplication = runnableApplications[applicationId];
 
@@ -52,7 +64,7 @@ const expandOrCollapseRunnableApplication = applicationId => {
 /* helpers */
 
 const connectToSseStream = () => {
-    const eventSource = new EventSource("/devdash/sse");
+    const eventSource = new EventSource("/devdash/dashboard/event-stream");
 
     addEventListeners(eventSource);
 };

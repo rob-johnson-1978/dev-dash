@@ -12,7 +12,7 @@ namespace DevDash.Features.Dashboard;
 
 internal static class Endpoints
 {
-    internal static async Task<IResult> HandleSseRequest(
+    internal static async Task<IResult> HandleEventStreamRequest(
         [FromServices] ActorSystem actorSystem,
         [FromServices] IHostApplicationLifetime applicationLifetime,
         [FromServices] IRequiredActor<DashboardSupervisor> dashboardSupervisorRequiredActor,
@@ -55,6 +55,23 @@ internal static class Endpoints
     }
 
     internal static async Task<IResult> HandleCommand(
+        [FromServices] IRequiredActor<DashboardSupervisor> dashboardSupervisorRequiredActor,
+        [FromRoute] string command)
+    {
+        object message = command switch
+        {
+            "start-dashboard" => new StartDashboard(),
+            "stop-dashboard" => new StopDashboard(),
+            "restart-dashboard" => new RestartDashboard(),
+            _ => throw new ArgumentException($"Unknown command: {command}")
+        };
+
+        dashboardSupervisorRequiredActor.ActorRef.Tell(message);
+
+        return Results.Accepted();
+    }
+
+    internal static async Task<IResult> HandleApplicationCommand(
         [FromServices] IRequiredActor<DashboardSupervisor> dashboardSupervisorRequiredActor,
         [FromRoute] string applicationId,
         [FromRoute] string command)

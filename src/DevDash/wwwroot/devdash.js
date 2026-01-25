@@ -9,20 +9,16 @@ addEventListener("DOMContentLoaded", () => {
     modalBackground = document.querySelector("#modal_background");
 
     modalBackground.addEventListener("click", closeAllModals);
-    document.addEventListener("keydown", closeAllModals);
 
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeAllModals();
+        }
+    });
 
     const event = new Event("DevDashLoaded");
     document.dispatchEvent(event);
 });
-
-/* exposed functions */
-
-const sendCommand = (applicationId, command) => {
-    fetch(`/devdash/command/${command}/${applicationId}`, {
-        method: "POST"
-    });
-}
 
 /* helpers */
 
