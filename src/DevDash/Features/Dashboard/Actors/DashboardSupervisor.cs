@@ -10,7 +10,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 {
     private const string UpdateTimerKey = "publish-runnable-application-timer-key";
     private readonly ILoggingAdapter _logger = Context.GetLogger();
-    private readonly DashboardSupervisorState _state = new();
+    private DashboardSupervisorState _state = new();
 
     public IStash Stash { get; set; } = null!;
 
@@ -128,7 +128,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 }
             case StartDashboard:
                 {
-                    HandleStartDashboard();
+                    HandleStartDashboardCommand();
                     break;
                 }
             default:
@@ -155,12 +155,12 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 }
             case StopDashboard:
                 {
-                    HandleStopDashboard();
+                    HandleStopDashboardCommand();
                     break;
                 }
             case RestartDashboard:
                 {
-                    HandleRestartDashboard();
+                    HandleRestartDashboardCommand();
                     break;
                 }
             case IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted:
@@ -278,9 +278,14 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                     HandleUpdateRunnableApplication(command);
                     break;
                 }
+            case StopDashboard:
+                {
+                    HandleStopDashboardCommand();
+                    break;
+                }
             case RestartDashboard:
                 {
-                    HandleRestartDashboard();
+                    HandleRestartDashboardCommand();
                     break;
                 }
             case ICommmandRunnableApplicationsToChangeState command:
@@ -352,16 +357,14 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         }
     }
 
-    private void HandleStartDashboard()
+    private void HandleStartDashboardCommand()
     {
         _logger.Info("Starting dashboard after UI command...");
-
-        Stash.ClearStash();
 
         Self.Tell(new StartRunnableApplications());
     }
 
-    private void HandleStopDashboard()
+    private void HandleStopDashboardCommand()
     {
         _logger.Info("Stopping dashboard after UI command...");
 
@@ -371,17 +374,10 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
             )
         );
 
-        foreach (var app in _state.RunnableApplications.Values)
-        {
-            app.ActorRef.Tell(new StopRunnableApplication(app.Id));
-        }
-
-        Stash.ClearStash();
-
-        Become(Configured);
+        ReconfigureAll();
     }
 
-    private void HandleRestartDashboard()
+    private void HandleRestartDashboardCommand()
     {
         _logger.Info("Restarting dashboard after UI command...");
 
@@ -391,15 +387,28 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
             )
         );
 
-        foreach (var app in _state.RunnableApplications.Values)
-        {
-            app.ActorRef.Tell(new StopRunnableApplication(app.Id));
-        }
-
-        Stash.ClearStash();
-
-        Become(Configured);
+        ReconfigureAll();
 
         Self.Tell(new StartRunnableApplications());
+    }
+
+    private void ReconfigureAll()
+    {
+        RunTask(async () =>
+        {
+            foreach (var app in _state.RunnableApplications.Values)
+            {
+                await app.ActorRef.GracefulStop(TimeSpan.FromSeconds(5));
+            }
+        });        
+
+        Timers.CancelAll();
+        Stash.ClearStash();
+
+        _state = new();
+
+        Become(OnReceive);
+
+        Self.Tell(new ConfigureDashboard());
     }
 }

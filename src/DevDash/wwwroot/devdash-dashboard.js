@@ -28,6 +28,15 @@ const sendDashboardApplicationCommand = (applicationId, command) => {
 }
 
 const clearLogs = (applicationId) => {
+
+    if (!applicationId) {
+        for (var key in runnableApplications) {
+            runnableApplications[key].consoleOutputElement.innerHTML = "";
+        }
+
+        return;
+    }
+
     var runnableApplication = runnableApplications[applicationId];
 
     if (!runnableApplication) {
@@ -86,24 +95,16 @@ const addEventListeners = (eventSource) => {
 
         globalStartButton.classList.add("disabled");
         globalStopButton.classList.remove("disabled");
-        globalRestartButton.classList.remove("disabled");        
+        globalRestartButton.classList.remove("disabled");
     });
 
     eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATIONS_STOPPED, () => {
-        for (const applicationId in runnableApplications) {
-            runnableApplications[applicationId].consoleOutputElement.innerHTML = "";
-        }
-
         globalStartButton.classList.remove("disabled");
         globalStopButton.classList.add("disabled");
         globalRestartButton.classList.add("disabled");
     });
 
     eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATIONS_RESTARTING, () => {
-        for (const applicationId in runnableApplications) {
-            runnableApplications[applicationId].consoleOutputElement.innerHTML = "";
-        }
-
         globalStartButton.classList.add("disabled");
         globalStopButton.classList.remove("disabled");
         globalRestartButton.classList.remove("disabled");

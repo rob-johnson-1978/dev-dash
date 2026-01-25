@@ -9,6 +9,8 @@ Simple dev dashboard
 
 - [ ] Kill and restart all button
 
+- [ ] Ensure logs don't get too big in UI (eg only last 1000 lines or something)
+
 - [ ] Custom commands (eg watch vs not)
 
 - [ ] Debugging (.NET)
