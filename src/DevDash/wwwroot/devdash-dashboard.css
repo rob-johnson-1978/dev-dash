@@ -8,70 +8,73 @@
     padding: 3rem 0 3rem 3rem;
 }
 
-    .runnable-applications > .runnable-application {
-        width: calc(33.333% - 4rem);
-        border: 1px solid #222;
-        margin: 0 3rem 3rem 0;
-        background: #222;
+.runnable-application {
+    width: calc(33.333% - 4rem);
+    margin: 0 3rem 3rem 0;
+    background: #222;
+    border-radius: 8px;
+    box-shadow: 0 0 3px 3px rgba(255,255,255,0.2);
+}
+
+.runnable-application-header {
+    background: #333;
+    padding: 1rem 2rem;
+    font-weight: bold;
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 1rem;
+    border-radius: 4px 4px 0 0;
+}
+
+    .runnable-application-header > h2 {
+        flex: 1;
+        font-size:2.3rem;
     }
 
-        .runnable-applications > .runnable-application > .runnable-application-header {
-            background: #333;
-            padding: 0.5rem 1rem;
-            font-weight: bold;
-            display: flex;
-            flex-direction: row;
-            margin-bottom: 1rem;
-        }
+.runnable-application-header-buttons {
+    text-align: right;
+}
 
-            .runnable-applications > .runnable-application > .runnable-application-header > h2 {
-                flex: 1;
-            }
+    .runnable-application-header-buttons > span {
+        display: inline-block;
+        margin-left: 0.5rem;
+    }
 
-            .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons {
-                text-align: right;
-            }
+    .runnable-application-header-buttons > .start,
+    .runnable-application-header-buttons > .clear-logs {
+        margin-left: 2rem;
+    }
 
-                .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > span {
-                    display: inline-block;
-                    margin-left: 0.5rem;
-                }
+    .runnable-application.modal-dialog .runnable-application-header-buttons > .full-screen,
+    .runnable-application-header-buttons > .exit-full-screen {
+        display: none;
+    }
 
-                .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > .start,
-                .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > .clear-logs {
-                    margin-left: 2rem;
-                }
+    .runnable-application-header-buttons > .full-screen,
+    .runnable-application.modal-dialog .runnable-application-header-buttons > .exit-full-screen {
+        display: inline-block;
+    }
 
-                .runnable-applications > .runnable-application.modal-dialog > .runnable-application-header > .runnable-application-header-buttons > .full-screen,
-                .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > .exit-full-screen {
-                    display: none;
-                }
+    .runnable-application-header-buttons > a.discovered-url {
+        display: inline-block;
+        margin-left: 1rem;
+    }
 
-                .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > .full-screen,
-                .runnable-applications > .runnable-application.modal-dialog > .runnable-application-header > .runnable-application-header-buttons > .exit-full-screen {
-                    display: inline-block;
-                }
+.runnable-application-console-output {
+    padding: 1rem;
+    font-family: monospace;
+    white-space: pre;
+    overflow: auto;
+    font-size: 13px !important;
+    line-height: 1.4em;
+    font-size: 10px;
+    height: 24rem;
+}
 
-                .runnable-applications > .runnable-application > .runnable-application-header > .runnable-application-header-buttons > a.discovered-url {
-                    display: inline-block;
-                    margin-left: 1rem;
-                }
-
-        .runnable-applications > .runnable-application > .runnable-application-console-output {
-            padding: 1rem;
-            font-family: monospace;
-            white-space: pre;
-            overflow: auto;
-            font-size: 13px !important;
-            line-height: 1.4em;
-            font-size: 10px;
-            height: 24rem;
-        }
-
-        .runnable-applications > .runnable-application.modal-dialog > .runnable-application-console-output {
-            font-size: 14px !important;
-            height: calc(100% - 3.5rem);
-        }
+.runnable-application.modal-dialog .runnable-application-console-output {
+    font-size: 14px !important;
+    height: calc(100% - 3.5rem);
+}
 
 .log-line {
     white-space: pre-wrap;

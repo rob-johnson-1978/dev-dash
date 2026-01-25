@@ -1,5 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+﻿@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 
 *, *::before, *::after {
     margin: 0;
@@ -9,12 +8,8 @@
 }
 
 html {
-    font-family: "Roboto", sans-serif;
-    font-optical-sizing: auto;
-    font-weight: 400;
-    font-style: normal;
-    font-variation-settings: "wdth" 100;
-    background: #111;
+    font-family: monospace;
+    background: #000;
     color: #ddd;
     height: 100%;
     font-size: 0.8em;
@@ -31,12 +26,23 @@ header {
     flex-shrink: 0;
     z-index: 1000;
     padding: 1rem;
-    background-color: #1E90FF;
+    background-color: #ff8c00;
     color: #111;
 }
 
     header a, header a:visited {
         color: #111;
+    }
+
+    header > h1 {
+        font-size: 4rem;
+        display: inline-block;
+    }
+
+    header > subtitle {
+        font-size: 2rem;
+        padding-left: 1rem;
+        display: inline-block;
     }
 
 main {
@@ -54,7 +60,7 @@ main {
     }
 
 a, a:visited, .button {
-    color: #1E90FF;
+    color: #ff8c00;
     text-decoration: none;
 }
 
@@ -71,10 +77,6 @@ a, a:visited, .button {
 
 ul, ol {
     list-style: none;
-}
-
-h1 {
-    font-weight: normal;
 }
 
 .material-symbols-outlined {
@@ -122,7 +124,7 @@ h1 {
         background: #222;
         color: #ddd;
         padding: 1rem;
-        border: 1px solid #1E90FF;
+        border: 1px solid #ff8c00;
         box-shadow: 0 0 10px rgba(0,0,0,0.5);
         width: 300px;
         word-wrap: break-word;
@@ -134,7 +136,7 @@ h1 {
         }
 
         #message_container .message.warn {
-            border-color: #FFA500;
+            border-color: #ff8c00;
         }
 
         #message_container .message.error {
