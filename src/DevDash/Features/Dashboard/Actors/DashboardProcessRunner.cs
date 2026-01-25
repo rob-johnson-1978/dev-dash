@@ -2,6 +2,10 @@
 using Akka.Event;
 using DevDash.Infastructure;
 using Google.Protobuf.WellKnownTypes;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace DevDash.Features.Dashboard.Actors;
 
@@ -16,7 +20,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
     protected override void PostStop()
     {
-        EnsureProcessIsStopped();
+        EnsureProcessIsStopped(_state);
     }
 
     protected override void OnReceive(object message)
@@ -25,7 +29,6 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         {
             case RunDotNetApplication command:
                 {
-                    _state.RunStatus = RunStatus.StartRequested;
                     _state.ApplicationId = command.Application.Id;
                     _state.WorkingDirectory = command.Application.WorkingDirectoryPath;
                     _state.FileName = "dotnet";
@@ -35,13 +38,13 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     if (command.Application.StartDetectionPattern != null)
                     {
-                        _state.DetectStartedViaStdOut =
+                        _state.DetectRunnableApplicationStartedViaStdOut =
                             line => line.Contains(command.Application.StartDetectionPattern, StringComparison.OrdinalIgnoreCase);
                     }
 
                     if (command.Application.LaunchProfile != null)
                     {
-                        _state.FindUrlViaStdOut = line =>
+                        _state.DetectRunnableApplicationStartedUrlViaStdOut = line =>
                         {
                             var match = FindUrlInDotNetMessagePattern().Match(line);
                             if (match.Success && match.Groups.Count > 1)
@@ -53,14 +56,11 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                         };
                     }
 
-                    HandleStart();
-
+                    HandleProcessStart();
                     break;
                 }
             case RunCompose command:
                 {
-                    _state.RunStatus = RunStatus.StartRequested;
-
                     _state.ApplicationId = Constants.DockerComposeApplicationId;
 
                     _state.FullComposePath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), command.ComposeFilePath));
@@ -77,7 +77,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     _state.Args = ["compose", "-f", _state.FullComposePath, "up", "--build", "--force-recreate"];
 
-                    _state.OnStarted = () =>
+                    _state.DetectRunnableApplicationStartedAfterProcessStarted = () =>
                     {
                         var composeStatusProvider = Context.ActorOf<ComposeStatusProvider>();
 
@@ -91,33 +91,25 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                         );
                     };
 
-                    HandleStart();
-
-                    break;
-                }
-            case ICommmandRunnableApplicationsToChangeState:
-            case ProcessExited:
-            case ApplicationUrlDetected:
-                {
-                    Stash.Stash();
+                    HandleProcessStart();
                     break;
                 }
             default:
                 {
+                    Stash.Stash();
                     break;
                 }
         }
     }
 
-    private void Started(object message)
+    private void ProcessStarted(object message)
     {
         switch (message)
         {
             case ICommmandRunnableApplicationsToChangeState command:
                 {
-                    if (_state.Process == null)
+                    if (_state.Process == null || _state.RunStatus != RunStatus.Started)
                     {
-                        _logger.Warning("Received {0} command but no dashboard process is available.", nameof(ICommmandRunnableApplicationsToChangeState));
                         break;
                     }
 
@@ -125,16 +117,15 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                     {
                         case StopRunnableApplication:
                             {
-                                HandleStop();
-
+                                HandleProcessStop();
                                 break;
                             }
                         case RestartRunnableApplication:
                             {
-                                Become(WaitingToStopBeforeRestart);
+                                Become(WaitingForProcessToStopBeforeRestart);
 
                                 Self.Tell(new StopRunnableApplication(_state.ApplicationId));
-
+                                
                                 break;
                             }
                         default:
@@ -161,23 +152,26 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     _state.Urls.Add(lowerUrl);
 
-                    ProcessApplicationStarted(Context.Parent, _state);
-
-                    SendUpdateStateCommandToParent();
+                    if (_state.DetectRunnableApplicationStartedUrlViaStdOut != null)
+                    {
+                        RunnableApplicationStarted(Context.System, Context.Parent, _state);
+                    }
 
                     break;
                 }
             case ComposeStarted:
                 {
-                    _logger.Info("Compose started, sending {0} to parent", nameof(RunnableApplicationStarted));
-
-                    Context.Parent.Tell(new RunnableApplicationStarted(_state.ApplicationId));
-
+                    RunnableApplicationStarted(Context.System, Context.Parent, _state);
                     break;
                 }
             case ComposeStartFailed:
                 {
-                    PublishActionLogMessage("Compose failed to start, or start could not be detected. Please fix issues and restart the application.");
+                    PublishApplicationLogMessage(
+                        Context.System,
+                        _state, 
+                        "Compose failed to start, or start could not be detected. Please fix issues and restart the application."
+                    );
+
                     break;
                 }
             default:
@@ -187,13 +181,13 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         }
     }
 
-    private void WaitingToStopBeforeRestart(object message)
+    private void WaitingForProcessToStopBeforeRestart(object message)
     {
         switch (message)
         {
             case StopRunnableApplication:
                 {
-                    HandleStop();
+                    HandleProcessStop();
 
                     Self.Tell(new StartRunnableApplication(_state.ApplicationId));
 
@@ -206,7 +200,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         }
     }
 
-    private void Stopped(object messsage)
+    private void ProcessStopped(object messsage)
     {
         switch (messsage)
         {
@@ -222,7 +216,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                     {
                         case StartRunnableApplication:
                             {
-                                HandleStart();
+                                HandleProcessStart();
                                 break;
                             }
                         default:
@@ -247,64 +241,396 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
     /* re-usable message handlers */
 
-    private void HandleStart()
+    private void HandleProcessStart()
     {
-        _state.RunStatus = RunStatus.StartRequested; // todo: make this immutable so that it can only be done via SendUpdateStateCommandToParent
+        UpdateRunStatusAndTellParent(RunStatus.StartRequested, Context.Parent, _state);
 
-        SendUpdateStateCommandToParent();
+        PublishApplicationLogMessage(
+            Context.System, 
+            _state, 
+            "Starting process"
+        );
 
-        PublishActionLogMessage("Starting process");
+        _state.Process = CreateProcess(Context.System, Self, Context.Parent, _state);
 
-        _state.Process = CreateProcess();
-
+        _state.DetectRunnableApplicationStartedAfterProcessStarted?.Invoke();
+        
         RunTask(async () => await StartProcess(_state.Process));
 
-        _state.OnStarted();
+        PublishApplicationLogMessage(
+            Context.System, 
+            _state, 
+            "Process started. Waiting for output..."
+        );
 
-        PublishActionLogMessage("Process started. Waiting for output...");
-
-        Become(Started);
+        Become(ProcessStarted);
 
         Stash.UnstashAll();
     }
 
-    private void HandleStop()
+    private void HandleProcessStop()
     {
-        _state.ManuallyStopped = true;
         _state.Urls.Clear();
 
-        PublishActionLogMessage("Stopping process");
+        PublishApplicationLogMessage(
+            Context.System, 
+            _state, 
+            "Stopping process"
+        );
 
-        EnsureProcessIsStopped();
+        EnsureProcessIsStopped(_state);
 
-        PublishActionLogMessage("Process stopped");
+        PublishApplicationLogMessage(
+            Context.System, 
+            _state, 
+            "Process stopped"
+        );
 
-        _state.RunStatus = RunStatus.Stopped;
         _state.Urls.Clear();
 
-        SendUpdateStateCommandToParent();
+        UpdateRunStatusAndTellParent(RunStatus.Stopped, Context.Parent, _state);
 
-        Become(Stopped);
+        Become(ProcessStopped);
 
         Stash.UnstashAll();
     }
 
     private void HandleProcessExited()
     {
-        if (_state.ManuallyStopped)
-        {
-            _state.ManuallyStopped = false;
-            return;
-        }
-
-        _state.ManuallyStopped = false;
-        _state.RunStatus = RunStatus.Stopped;
         _state.Urls.Clear();
 
-        SendUpdateStateCommandToParent();
+        UpdateRunStatusAndTellParent(RunStatus.Stopped, Context.Parent, _state);
 
-        Become(Stopped);
+        Become(ProcessStopped);
 
         Stash.UnstashAll();
     }
+
+    /* helpers */
+
+    private static Process CreateProcess(ActorSystem system, IActorRef self, IActorRef parent, DashboardProcessRunnerState state)
+    {
+        var processStartInfo = new ProcessStartInfo
+        {
+            FileName = state.FileName,
+            Arguments = string.Join(" ", state.Args),
+            WorkingDirectory = state.WorkingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            Environment =
+            {
+                // Force .NET apps to emit ANSI codes even when stdout is redirected
+                ["DOTNET_SYSTEM_CONSOLE_ALLOW_ANSI_COLOR_REDIRECTION"] = "true",
+                // For older .NET Core versions
+                ["DOTNET_ConsoleColors"] = "true",
+                // For Node.js/npm tools
+                ["FORCE_COLOR"] = "1",
+                // For many CLI tools
+                ["CLICOLOR_FORCE"] = "1"
+            }
+        };
+
+        var process = new Process
+        {
+            StartInfo = processStartInfo,
+            EnableRaisingEvents = true
+        };
+
+        process.OutputDataReceived += (sender, e) =>
+        {
+            if (e.Data == null)
+            {
+                return;
+            }
+
+            if (state.DetectRunnableApplicationStartedViaStdOut != null)
+            {
+                var started = state.DetectRunnableApplicationStartedViaStdOut(e.Data);
+
+                if (started)
+                {
+                    RunnableApplicationStarted(system, parent, state);
+                }
+            }
+
+            if (state.DetectRunnableApplicationStartedUrlViaStdOut != null)
+            {
+                var url = state.DetectRunnableApplicationStartedUrlViaStdOut(e.Data);
+
+                if (url != null && !string.IsNullOrWhiteSpace(url))
+                {
+                    self.Tell(new ApplicationUrlDetected(url));
+                }
+            }
+
+            var htmlFormattedLine = BuildHtmlFromOutput(e.Data);
+
+            system.EventStream.Publish(
+                DashboardEventRaised.Create(new ApplicationOutputLineEmitted(state.ApplicationId, htmlFormattedLine))
+            );
+        };
+
+        process.ErrorDataReceived += (sender, e) =>
+        {
+            if (e.Data == null)
+            {
+                return;
+            }
+
+            var line = BuildHtmlFromOutput(e.Data);
+
+            system.EventStream.Publish(
+                DashboardEventRaised.Create(new ApplicationErrorOutputLineEmitted(state.ApplicationId, line))
+            );
+        };
+
+        process.Exited += (sender, e) =>
+        {
+            self.Tell(new ProcessExited());
+        };
+
+        return process;
+    }
+
+    private static async Task StartProcess(Process process)
+    {
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+    }
+
+    private static void RunnableApplicationStarted(ActorSystem system, IActorRef parent, DashboardProcessRunnerState state)
+    {
+        UpdateRunStatusAndTellParent(RunStatus.Started, parent, state);
+
+        PublishApplicationLogMessage(
+            system,
+            state, 
+            "Application started successfully."
+        );
+
+        parent.Tell(new RunnableApplicationStarted(state.ApplicationId));
+    }
+
+    private static void UpdateRunStatusAndTellParent(RunStatus runStatus, IActorRef parent, DashboardProcessRunnerState state)
+    {
+        state.RunStatus = runStatus;
+
+        parent.Tell(new UpdateRunnableApplication(
+            new RunnableApplication(state.ApplicationId, state.RunStatus, [.. state.Urls])
+        ));
+    }
+
+    private static void PublishApplicationLogMessage(ActorSystem system, DashboardProcessRunnerState state, string message)
+    {
+        var typeName = typeof(DashboardProcessRunner).FullName ?? nameof(DashboardProcessRunner);
+        var formattedMessage = $"<span class=\"ansi-devdash\">ddsh</span>: {typeName}[0]{Environment.NewLine}      {System.Net.WebUtility.HtmlEncode(message)}";
+
+        system.EventStream.Publish(
+            DashboardEventRaised.Create(
+                new ApplicationOutputLineEmitted(state.ApplicationId, formattedMessage)
+            )
+        );
+    }
+
+    private static void EnsureProcessIsStopped(DashboardProcessRunnerState state)
+    {
+        if (state.Process == null)
+        {
+            return;
+        }
+
+        if (state.Process.HasExited)
+        {
+            try
+            {
+                state.Process.Dispose();
+                return;
+            }
+            catch
+            {
+            }
+        }
+
+        try
+        {
+            // Kill the entire process tree
+            KillProcessTree(state.Process.Id);
+        }
+        catch
+        {
+            // Fallback to simple kill if tree kill fails
+            try
+            {
+                state.Process.Kill();
+            }
+            catch
+            {
+                // Process might have already exited
+            }
+        }
+    }
+
+    private static void KillProcessTree(int processId)
+    {
+        try
+        {
+            var process = Process.GetProcessById(processId);
+
+            // In .NET 5+, Kill() has an optional parameter to kill the entire tree
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(1000);
+        }
+        catch (ArgumentException)
+        {
+            // Process already exited
+        }
+        catch (PlatformNotSupportedException)
+        {
+            // Fall back to platform-specific approach
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                KillProcessTreeWindowsCmd(processId);
+            }
+            else
+            {
+                KillProcessTreeUnix(processId);
+            }
+        }
+    }
+
+    private static void KillProcessTreeWindowsCmd(int processId)
+    {
+        // Use taskkill command to kill process tree
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c taskkill /PID {processId} /T /F",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            using var killProcess = Process.Start(startInfo);
+            killProcess?.WaitForExit(1000);
+        }
+        catch
+        {
+            // Fallback to just killing the main process
+            try
+            {
+                var process = Process.GetProcessById(processId);
+                process.Kill();
+            }
+            catch (ArgumentException)
+            {
+                // Process already exited
+            }
+        }
+    }
+
+    private static void KillProcessTreeUnix(int processId)
+    {
+        // On Unix, we can use process groups or pkill
+        try
+        {
+            // Try to kill the process group
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "/bin/bash",
+                Arguments = $"-c \"kill -TERM -{processId}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var killProcess = Process.Start(startInfo);
+            killProcess?.WaitForExit(1000);
+        }
+        catch
+        {
+            // Fallback to killing just the process
+            try
+            {
+                var process = Process.GetProcessById(processId);
+                process.Kill();
+            }
+            catch (ArgumentException)
+            {
+                // Process already exited
+            }
+        }
+    }
+
+    private static string BuildHtmlFromOutput(string line)
+    {
+        var result = new StringBuilder();
+        var currentStyles = new AnsiStyles();
+        var lastIndex = 0;
+
+        foreach (Match match in AnsiCodePattern().Matches(line))
+        {
+            // Append text before this ANSI code
+            if (match.Index > lastIndex)
+            {
+                var text = System.Net.WebUtility.HtmlEncode(line[lastIndex..match.Index]);
+                var classes = currentStyles.ToCssClasses();
+                if (classes.Length > 0)
+                {
+                    result.Append($"<span class=\"{classes}\">{text}</span>");
+                }
+                else
+                {
+                    result.Append(text);
+                }
+            }
+
+            var codes = match.Groups[1].Value.Split(';', StringSplitOptions.RemoveEmptyEntries);
+
+            // Empty escape sequence (ESC[m) is equivalent to reset (ESC[0m)
+            if (codes.Length == 0)
+            {
+                currentStyles.Reset();
+            }
+            else
+            {
+                foreach (var code in codes)
+                {
+                    if (int.TryParse(code, out var num))
+                    {
+                        currentStyles.ApplyCode(num);
+                    }
+                }
+            }
+
+            lastIndex = match.Index + match.Length;
+        }
+
+        // Append remaining text
+        if (lastIndex < line.Length)
+        {
+            var text = System.Net.WebUtility.HtmlEncode(line[lastIndex..]);
+            var classes = currentStyles.ToCssClasses();
+            if (classes.Length > 0)
+            {
+                result.Append($"<span class=\"{classes}\">{text}</span>");
+            }
+            else
+            {
+                result.Append(text);
+            }
+        }
+
+        return result.ToString();
+    }    
+
+    [GeneratedRegex(@"\x1B\[([0-9;]*)m|\x1B\][^\x07]*\x07|\x1B\[[0-9;]*[A-Za-ln-z]")]
+    private static partial Regex AnsiCodePattern();
+
+    [GeneratedRegex(@"Now listening on:\s+(https?://\S+)", RegexOptions.IgnoreCase, "en-GB")]
+    private static partial Regex FindUrlInDotNetMessagePattern();
 }

@@ -77,14 +77,6 @@ const addEventListeners = (eventSource) => {
             return;
         }
 
-        //if (!data.isBackgroundUpdate) {
-
-        //    var updateJson = JSON.stringify(data.application, null, 4);
-        //    var prettyJson = updateJson.replace(/ /g, "&nbsp;").replace(/\n/g, "<br>");
-
-        //    showMessage(prettyJson, "code");
-        //}
-
         runnableApplication.buttonContainerElement.querySelectorAll(".discovered-url").forEach(el => el.remove());
 
         if (data.status === ENUMS_RUNSTATUS_NEVER_STARTED || data.status === ENUMS_RUNSTATUS_START_REQUESTED) {
@@ -99,7 +91,7 @@ const addEventListeners = (eventSource) => {
             runnableApplication.stopButtonElement.classList.remove("disabled");
             runnableApplication.restartButtonElement.classList.remove("disabled");
 
-            data.application.urls.forEach(url => {
+            data.urls.forEach(url => {
                 const link = document.createElement("a");
 
                 link.href = url
@@ -125,6 +117,11 @@ const addEventListeners = (eventSource) => {
 
     eventSource.addEventListener(EVENT_NAMES_APPLICATION_ERROR_OUTPUT_LINE_EMITTED, (e) => {
         logToConsoleOutput(e, true);
+    });
+
+    eventSource.addEventListener(EVENT_NAMES_MESSAGE_AREA_MESSAGE_PUBLISHED, (e) => {
+        const data = JSON.parse(e.data);
+        showMessage(data.message, data.status);
     });
 }
 

@@ -98,6 +98,13 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         {
             case StartRunnableApplications:
                 {
+                    Context
+                        .System
+                        .EventStream
+                        .Publish(DashboardEventRaised.Create(
+                            new MessageAreaMessagePublished("Starting applications"))
+                        );
+
                     _logger.Info("Starting runnable applications...");
 
                     HandlePublishUpdateForAllRunnableApplications();
@@ -143,19 +150,6 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                 }
             case IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted:
                 {
-                    if (
-                        message is RunnableApplicationStarted runnableApplicationStarted &&
-                        _state.RunnableApplications.TryGetValue(runnableApplicationStarted.Id, out var runnableApplication)
-                    )
-                    {
-                        _logger.Info("Application started: {0}", runnableApplicationStarted.Id);
-
-                        _state.RunnableApplications[runnableApplicationStarted.Id] = runnableApplication with
-                        {
-                            RunStatus = RunStatus.Started
-                        };
-                    }
-
                     var currentlyWaitingForStartedMessages = _state
                         .RunnableApplications
                         .Values
@@ -184,8 +178,15 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                             UpdateTimerKey,
                             new PublishUpdateForAllRunnableApplications(),
                             TimeSpan.Zero,
-                            TimeSpan.FromSeconds(1)
+                            TimeSpan.FromMilliseconds(500)
                         );
+
+                        Context
+                            .System
+                            .EventStream
+                            .Publish(DashboardEventRaised.Create(
+                                new MessageAreaMessagePublished("All applications started", "success"))
+                            );
 
                         break;
                     }
@@ -205,11 +206,6 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     foreach (var application in applicationsToStart)
                     {
-                        _state.RunnableApplications[application.Id] = application with
-                        {
-                            RunStatus = RunStatus.StartRequested
-                        };
-
                         switch (application.Type)
                         {
                             case ApplicationType.Compose:
@@ -330,7 +326,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         {
             Context.System.EventStream.Publish(
                 DashboardEventRaised.Create(
-                    new RunnableApplicationStatusUpdated(app.Id, app.RunStatus)
+                    new RunnableApplicationStatusUpdated(app.Id, app.RunStatus, app.Urls)
                 )
             );
         }

@@ -9,11 +9,10 @@ internal sealed class DashboardProcessRunnerState
     public string FileName { get; set; } = string.Empty;
     public string[] Args { get; set; } = [];
     public Process? Process { get; set; }
-    public bool ManuallyStopped { get; set; }
-    public Func<string, string?>? FindUrlViaStdOut { get; set; }
-    public Func<string, bool>? DetectStartedViaStdOut { get; set; }
+    public Func<string, string?>? DetectRunnableApplicationStartedUrlViaStdOut { get; set; }
+    public Func<string, bool>? DetectRunnableApplicationStartedViaStdOut { get; set; }
+    public Action? DetectRunnableApplicationStartedAfterProcessStarted { get; set; }
     public HashSet<string> Urls { get; } = [];
-    public RunStatus RunStatus { get; set; }
-    public Action OnStarted { get; set; } = () => { };
+    public RunStatus RunStatus { get; set; }    
     public string FullComposePath { get; set; } = string.Empty;
 }
