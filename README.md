@@ -7,7 +7,11 @@ Simple dev dashboard
 
 - [x] Order of startup / dependencies
 
-- [ ] Kill and restart all button
+- [x] Kill and restart all button
+
+- [ ] Rework "RunStatus" to use current actor behaviour to report on status, 
+rather separate status state in both supervisor and runner. Still use a timer, 
+but handle it in each behaviour state and report based on that instead!
 
 - [ ] Ensure logs don't get too big in UI (eg only last 1000 lines or something)
 
