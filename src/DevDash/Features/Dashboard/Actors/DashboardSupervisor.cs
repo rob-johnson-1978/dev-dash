@@ -2,6 +2,7 @@
 using Akka.Event;
 using DevDash;
 using DevDash.Infastructure;
+using Google.Protobuf.WellKnownTypes;
 using System.Collections.Immutable;
 
 namespace DevDash.Features.Dashboard.Actors;
@@ -42,6 +43,13 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         RunTask(async () => await configuration.BeforeStart());
                     }
 
+                    Timers.StartPeriodicTimer(
+                            UpdateTimerKey,
+                            new PublishDashboardUpdate(),
+                            TimeSpan.Zero,
+                            TimeSpan.FromMilliseconds(500)
+                        );
+
                     if (configuration.ComposeConfiguration != null)
                     {
                         _state.RunnableApplications.Add(
@@ -52,7 +60,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                                 Constants.DockerComposeApplicationId,
                                 RunStatus.NeverStarted,
                                 [],
-                                Context.ActorOf<DashboardProcessRunner>(Constants.DockerComposeApplicationId)
+                                Context.ActorOf<DashboardProcessRunner>(BuildProcessActorName(Constants.DockerComposeApplicationId))
                             )
                         );
                     }
@@ -67,7 +75,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                                 applicationKeyValuePair.Key,
                                 RunStatus.NeverStarted,
                                 [],
-                                Context.ActorOf<DashboardProcessRunner>(applicationKeyValuePair.Key)
+                                Context.ActorOf<DashboardProcessRunner>(BuildProcessActorName(applicationKeyValuePair.Key))
                             )
                         );
                     }
@@ -78,10 +86,17 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     _logger.Info("Dashboard configured with {0} runnable applications.", _state.RunnableApplications.Count);
 
+                    _state.RunStatus = RunStatus.Stopped;
+
                     Become(Configured);
 
                     Stash.UnstashAll();
 
+                    break;
+                }
+            case PublishDashboardUpdate:
+                {
+                    HandlePublishDashboardUpdate();
                     break;
                 }
             default:
@@ -98,6 +113,8 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         {
             case StartRunnableApplications:
                 {
+                    _state.RunStatus = RunStatus.Started;
+
                     Context
                         .System
                         .EventStream
@@ -131,6 +148,11 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                     HandleStartDashboardCommand();
                     break;
                 }
+            case PublishDashboardUpdate:
+                {
+                    HandlePublishDashboardUpdate();
+                    break;
+                }
             default:
                 {
                     Stash.Stash();
@@ -161,6 +183,11 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
             case RestartDashboard:
                 {
                     HandleRestartDashboardCommand();
+                    break;
+                }
+            case PublishDashboardUpdate:
+                {
+                    HandlePublishDashboardUpdate();
                     break;
                 }
             case IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted:
@@ -288,6 +315,11 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                     HandleRestartDashboardCommand();
                     break;
                 }
+            case PublishDashboardUpdate:
+                {
+                    HandlePublishDashboardUpdate();
+                    break;
+                }
             case ICommmandRunnableApplicationsToChangeState command:
                 {
                     if (!_state.RunnableApplications.TryGetValue(command.Id, out var runnableApplication))
@@ -345,13 +377,22 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         );
     }
 
+    private void HandlePublishDashboardUpdate()
+    {
+        Context.System.EventStream.Publish(
+            DashboardEventRaised.Create(
+                new DashboardStatusPublished(_state.RunStatus)
+            )
+        );
+    }
+
     private void HandlePublishUpdateForAllRunnableApplications()
     {
         foreach (var app in _state.RunnableApplications.Values)
         {
             Context.System.EventStream.Publish(
                 DashboardEventRaised.Create(
-                    new RunnableApplicationStatusUpdated(app.Id, app.RunStatus, app.Urls)
+                    new RunnableApplicationStatusPublished(app.Id, app.RunStatus, app.Urls)
                 )
             );
         }
@@ -359,6 +400,13 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
     private void HandleStartDashboardCommand()
     {
+        Context.System.EventStream.Publish(
+            DashboardEventRaised.Create(
+                new MessageAreaMessagePublished("Starting dashboard..."))
+            );
+
+        _state.RunStatus = RunStatus.NeverStarted; // this disables all buttons then subsequent handling changes it
+
         _logger.Info("Starting dashboard after UI command...");
 
         Self.Tell(new StartRunnableApplications());
@@ -366,26 +414,28 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
     private void HandleStopDashboardCommand()
     {
-        _logger.Info("Stopping dashboard after UI command...");
-
         Context.System.EventStream.Publish(
             DashboardEventRaised.Create(
-                new RunnableApplicationsStopped()
-            )
-        );
+                new MessageAreaMessagePublished("Stopping dashboard..."))
+            );
+
+        _state.RunStatus = RunStatus.NeverStarted; // this disables all buttons then subsequent handling changes it
+
+        _logger.Info("Stopping dashboard after UI command...");
 
         ReconfigureAll();
     }
 
     private void HandleRestartDashboardCommand()
     {
-        _logger.Info("Restarting dashboard after UI command...");
-
         Context.System.EventStream.Publish(
             DashboardEventRaised.Create(
-                new RunnableApplicationsRestarting()
-            )
-        );
+                new MessageAreaMessagePublished("Restarting dashboard..."))
+            );
+
+        _state.RunStatus = RunStatus.NeverStarted; // this disables all buttons then subsequent handling changes it
+
+        _logger.Info("Restarting dashboard after UI command...");
 
         ReconfigureAll();
 
@@ -400,7 +450,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
             {
                 await app.ActorRef.GracefulStop(TimeSpan.FromSeconds(5));
             }
-        });        
+        });
 
         Timers.CancelAll();
         Stash.ClearStash();
@@ -410,5 +460,10 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         Become(OnReceive);
 
         Self.Tell(new ConfigureDashboard());
+    }
+
+    private static string BuildProcessActorName(string applicationId)
+    {
+        return $"dashboard-process-runner-{applicationId}-{Guid.NewGuid()}";
     }
 }

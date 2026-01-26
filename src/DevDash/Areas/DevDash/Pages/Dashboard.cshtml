@@ -15,13 +15,13 @@
                 <h2>@app.Id</h2>
                 <div class="runnable-application-header-buttons">
                     <span class="button start disabled material-symbols-outlined"
-                          onclick="sendDashboardApplicationCommand('@app.Id', 'start-application')"
+                          onclick="disableRunnableApplicationButtons('@app.Id'); sendDashboardApplicationCommand('@app.Id', 'start-application');"
                           title="Start application">play_circle</span>
                     <span class="button stop disabled material-symbols-outlined"
-                          onclick="sendDashboardApplicationCommand('@app.Id', 'stop-application')"
+                          onclick="disableRunnableApplicationButtons('@app.Id'); sendDashboardApplicationCommand('@app.Id', 'stop-application');"
                           title="Stop application">stop_circle</span>
                     <span class="button restart disabled material-symbols-outlined"
-                          onclick="sendDashboardApplicationCommand('@app.Id', 'restart-application')"
+                          onclick="disableRunnableApplicationButtons('@app.Id'); sendDashboardApplicationCommand('@app.Id', 'restart-application');"
                           title="Restart application">settings_backup_restore</span>
                     <span class="button clear-logs material-symbols-outlined"
                           onclick="clearLogs('@app.Id')"
@@ -44,15 +44,15 @@
 <div id="dashboard_global_actions">
     <span id="global_start"
           class="button disabled material-symbols-outlined"
-          onclick="sendDashboardCommand('start-dashboard')"
+          onclick="disableGlobalButtons(); sendDashboardCommand('start-dashboard');"
           title="Start Dashboard">play_circle</span>
     <span id="global_stop"
           class="button disabled material-symbols-outlined"
-          onclick="sendDashboardCommand('stop-dashboard')"
+          onclick="disableGlobalButtons(); sendDashboardCommand('stop-dashboard');"
           title="Stop Dashboard">stop_circle</span>
     <span id="global_restart"
           class="button disabled material-symbols-outlined"
-          onclick="sendDashboardCommand('restart-dashboard')"
+          onclick="disableGlobalButtons(); sendDashboardCommand('restart-dashboard');"
           title="Restart Dashboard">settings_backup_restore</span>
     <span id="global_clear_logs"
           class="button material-symbols-outlined"
@@ -62,10 +62,9 @@
 
 @section Scripts {
     <script type="text/javascript">
+        window.EVENT_NAMES_DASHBOARD_STATUS_PUBLISHED = '@nameof(DashboardStatusPublished)';
         window.EVENT_NAMES_RUNNABLE_APPLICATIONS_STARTING = '@nameof(RunnableApplicationsStarting)';
-        window.EVENT_NAMES_RUNNABLE_APPLICATIONS_STOPPED = '@nameof(RunnableApplicationsStopped)';
-        window.EVENT_NAMES_RUNNABLE_APPLICATIONS_RESTARTING = '@nameof(RunnableApplicationsRestarting)';
-        window.EVENT_NAMES_RUNNABLE_APPLICATION_STATUS_UPDATED = '@nameof(RunnableApplicationStatusUpdated)';
+        window.EVENT_NAMES_RUNNABLE_APPLICATION_STATUS_PUBLISHED = '@nameof(RunnableApplicationStatusPublished)';
         window.EVENT_NAMES_MESSAGE_AREA_MESSAGE_PUBLISHED = '@nameof(MessageAreaMessagePublished)';
         window.EVENT_NAMES_APPLICATION_OUTPUT_LINE_EMITTED = '@nameof(ApplicationOutputLineEmitted)';
         window.EVENT_NAMES_APPLICATION_ERROR_OUTPUT_LINE_EMITTED = '@nameof(ApplicationErrorOutputLineEmitted)';

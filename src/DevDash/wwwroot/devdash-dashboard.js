@@ -27,6 +27,24 @@ const sendDashboardApplicationCommand = (applicationId, command) => {
     });
 }
 
+const disableGlobalButtons = () => {
+    globalStartButton.classList.add("disabled");    
+    globalStopButton.classList.add("disabled");
+    globalRestartButton.classList.add("disabled");
+};
+
+const disableRunnableApplicationButtons = (applicationId) => {
+    var runnableApplication = runnableApplications[applicationId];
+
+    if (!runnableApplication) {
+        return;
+    }
+
+    runnableApplication.startButtonElement.classList.add("disabled");
+    runnableApplication.stopButtonElement.classList.add("disabled");
+    runnableApplication.restartButtonElement.classList.add("disabled");
+};
+
 const clearLogs = (applicationId) => {
 
     if (!applicationId) {
@@ -88,29 +106,39 @@ const addEventListeners = (eventSource) => {
         showMessage("Error connecting to event stream. Attempting to reconnect...", "error");
     });
 
+    eventSource.addEventListener(EVENT_NAMES_DASHBOARD_STATUS_PUBLISHED, (e) => {
+        const data = JSON.parse(e.data);
+
+        switch (data.status) {
+            case ENUMS_RUNSTATUS_NEVER_STARTED:
+            case ENUMS_RUNSTATUS_START_REQUESTED: {
+                globalStartButton.classList.add("disabled");
+                globalStopButton.classList.add("disabled");
+                globalRestartButton.classList.add("disabled");
+                break;
+            }
+            case ENUMS_RUNSTATUS_STARTED: {
+                globalStartButton.classList.add("disabled");
+                globalStopButton.classList.remove("disabled");
+                globalRestartButton.classList.remove("disabled");
+                break;
+            }
+            case ENUMS_RUNSTATUS_STOPPED: {
+                globalStartButton.classList.remove("disabled");
+                globalStopButton.classList.add("disabled");
+                globalRestartButton.classList.add("disabled");
+                break;
+            }
+        }
+    });
+
     eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATIONS_STARTING, () => {
         for (const applicationId in runnableApplications) {
             runnableApplications[applicationId].consoleOutputElement.innerHTML = "";
         }
-
-        globalStartButton.classList.add("disabled");
-        globalStopButton.classList.remove("disabled");
-        globalRestartButton.classList.remove("disabled");
     });
 
-    eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATIONS_STOPPED, () => {
-        globalStartButton.classList.remove("disabled");
-        globalStopButton.classList.add("disabled");
-        globalRestartButton.classList.add("disabled");
-    });
-
-    eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATIONS_RESTARTING, () => {
-        globalStartButton.classList.add("disabled");
-        globalStopButton.classList.remove("disabled");
-        globalRestartButton.classList.remove("disabled");
-    });
-
-    eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATION_STATUS_UPDATED, (e) => {
+    eventSource.addEventListener(EVENT_NAMES_RUNNABLE_APPLICATION_STATUS_PUBLISHED, (e) => {
         const data = JSON.parse(e.data);
         const runnableApplication = runnableApplications[data.applicationId];
 
