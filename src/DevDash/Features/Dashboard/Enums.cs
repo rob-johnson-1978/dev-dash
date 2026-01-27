@@ -3,6 +3,7 @@
 internal enum ApplicationType
 {
     Compose,
+    Generic,
     DotNet
 }
 

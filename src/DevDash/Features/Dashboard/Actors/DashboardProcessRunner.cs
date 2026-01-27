@@ -27,6 +27,23 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
     {
         switch (message)
         {
+            case RunGenericProcess command:
+                {
+                    _state.ApplicationId = command.Configuration.Id;
+                    _state.WorkingDirectory = command.Configuration.PathToFolder;
+                    _state.FileName = command.Configuration.FileName;
+                    _state.Args = command.Configuration.Args;
+                    
+                    // todo: start/url detection stuff
+
+                    //if (command.Configuration.StartDetectionPattern != null)
+                    //{
+                    //    _state.DetectRunnableApplicationStartedViaStdOut =
+                    //        line => line.Contains(command.Application.StartDetectionPattern, StringComparison.OrdinalIgnoreCase);
+                    //}
+                    HandleProcessStart();
+                    break;
+                }
             case RunDotNetApplication command:
                 {
                     _state.ApplicationId = command.Application.Id;

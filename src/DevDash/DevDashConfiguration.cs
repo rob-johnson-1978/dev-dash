@@ -41,6 +41,12 @@ public sealed class DevDashConfiguration
         return this;
     }
 
+    public DevDashConfiguration AddGenericProcess(GenericProcessConfiguration configuration)
+    {
+        GenericProcesses[configuration.Id.ToLower()] = configuration;
+        return this;
+    }
+
     public DevDashConfiguration SetBeforeStart(Func<Task> beforeStart)
     {
         BeforeStart = beforeStart;
@@ -67,6 +73,8 @@ public sealed class DevDashConfiguration
     }
 
     /* internal */
+
+    internal Dictionary<string, GenericProcessConfiguration> GenericProcesses { get; } = [];
 
     internal Dictionary<string, DotNetApplication> DotNetApplications { get; } = [];
 

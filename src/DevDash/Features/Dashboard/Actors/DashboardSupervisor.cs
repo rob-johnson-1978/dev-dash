@@ -65,6 +65,21 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         );
                     }
 
+                    foreach(var process in configuration.GenericProcesses)
+                    {
+                        _state.RunnableApplications.Add(
+                            process.Key,
+                            new RunnableApplicationWithActor(
+                                ApplicationType.Generic,
+                                process.Value.StartupOrder,
+                                process.Key,
+                                RunStatus.NeverStarted,
+                                [],
+                                Context.ActorOf<DashboardProcessRunner>(BuildProcessActorName(process.Key))
+                            )
+                        );
+                    }
+
                     foreach (var applicationKeyValuePair in configuration.DotNetApplications)
                     {
                         _state.RunnableApplications.Add(
@@ -262,6 +277,17 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                                             )
                                         );
 
+                                    break;
+                                }
+                            case ApplicationType.Generic:
+                                {
+                                    application
+                                        .ActorRef?
+                                        .Tell(
+                                            new RunGenericProcess(
+                                                configuration.GenericProcesses[application.Id]
+                                            )
+                                        );
                                     break;
                                 }
                             case ApplicationType.DotNet:
