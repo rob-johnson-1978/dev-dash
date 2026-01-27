@@ -2,6 +2,7 @@
 using Akka.Event;
 using DevDash.Infastructure;
 using Google.Protobuf.WellKnownTypes;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -33,14 +34,37 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                     _state.WorkingDirectory = command.Configuration.PathToFolder;
                     _state.FileName = command.Configuration.FileName;
                     _state.Args = command.Configuration.Args;
-                    
-                    // todo: start/url detection stuff
 
-                    //if (command.Configuration.StartDetectionPattern != null)
-                    //{
-                    //    _state.DetectRunnableApplicationStartedViaStdOut =
-                    //        line => line.Contains(command.Application.StartDetectionPattern, StringComparison.OrdinalIgnoreCase);
-                    //}
+                    if (command.Configuration.StartDetectionRegex != null)
+                    {
+                        _state.DetectRunnableApplicationStartedViaStdOut =
+                            DetectStartByRegex(new Regex(command.Configuration.StartDetectionRegex));
+                    }
+
+                    if (command.Configuration.PreDefinedStartDetection != null)
+                    {
+                        _state.DetectRunnableApplicationStartedViaStdOut =
+                            DetectStartByRegex(GetPreDefinedRegex(command.Configuration.PreDefinedStartDetection));
+                    }
+
+                    if (command.Configuration.UrlDetections.Length > 0)
+                    {
+                        _state.DetectRunnableApplicationStartedUrlViaStdOut =
+                            DetectUrlByRegex(
+                                [.. command
+                                    .Configuration
+                                    .UrlDetections
+                                    .Select(d => new UrlDetectionWithRegex(new Regex(d.RegexPattern), d.IsPortOnly, d.IsHttpsWhenPortOnly))
+                                ]
+                            );
+                    }
+
+                    if (command.Configuration.PreDefinedUrlDetections != null)
+                    {
+                        _state.DetectRunnableApplicationStartedUrlViaStdOut =
+                            DetectUrlByRegex(GetPreDefinedUrlDetections(command.Configuration.PreDefinedUrlDetections));
+                    }
+
                     HandleProcessStart();
                     break;
                 }
@@ -142,7 +166,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                                 Become(WaitingForProcessToStopBeforeRestart);
 
                                 Self.Tell(new StopRunnableApplication(_state.ApplicationId));
-                                
+
                                 break;
                             }
                         default:
@@ -171,21 +195,21 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     if (_state.DetectRunnableApplicationStartedUrlViaStdOut != null)
                     {
-                        RunnableApplicationStarted(Context.System, Context.Parent, _state);
+                        SetAsRunnableApplicationStarted(Context.System, Context.Parent, _state);
                     }
 
                     break;
                 }
             case ComposeStarted:
                 {
-                    RunnableApplicationStarted(Context.System, Context.Parent, _state);
+                    SetAsRunnableApplicationStarted(Context.System, Context.Parent, _state);
                     break;
                 }
             case ComposeStartFailed:
                 {
                     PublishApplicationLogMessage(
                         Context.System,
-                        _state, 
+                        _state,
                         "Compose failed to start, or start could not be detected. Please fix issues and restart the application."
                     );
 
@@ -263,20 +287,20 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         UpdateRunStatusAndTellParent(RunStatus.StartRequested, Context.Parent, _state);
 
         PublishApplicationLogMessage(
-            Context.System, 
-            _state, 
+            Context.System,
+            _state,
             "Starting process"
         );
 
         _state.Process = CreateProcess(Context.System, Self, Context.Parent, _state);
 
         _state.DetectRunnableApplicationStartedAfterProcessStarted?.Invoke();
-        
+
         RunTask(async () => await StartProcess(_state.Process));
 
         PublishApplicationLogMessage(
-            Context.System, 
-            _state, 
+            Context.System,
+            _state,
             "Process started. Waiting for output..."
         );
 
@@ -290,16 +314,16 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         _state.Urls.Clear();
 
         PublishApplicationLogMessage(
-            Context.System, 
-            _state, 
+            Context.System,
+            _state,
             "Stopping process"
         );
 
         EnsureProcessIsStopped(_state);
 
         PublishApplicationLogMessage(
-            Context.System, 
-            _state, 
+            Context.System,
+            _state,
             "Process stopped"
         );
 
@@ -362,16 +386,6 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 return;
             }
 
-            if (state.DetectRunnableApplicationStartedViaStdOut != null)
-            {
-                var started = state.DetectRunnableApplicationStartedViaStdOut(e.Data);
-
-                if (started)
-                {
-                    RunnableApplicationStarted(system, parent, state);
-                }
-            }
-
             if (state.DetectRunnableApplicationStartedUrlViaStdOut != null)
             {
                 var url = state.DetectRunnableApplicationStartedUrlViaStdOut(e.Data);
@@ -380,6 +394,19 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 {
                     self.Tell(new ApplicationUrlDetected(url));
                 }
+            }
+            else if (state.DetectRunnableApplicationStartedViaStdOut != null)
+            {
+                var started = state.DetectRunnableApplicationStartedViaStdOut(e.Data);
+
+                if (started)
+                {
+                    SetAsRunnableApplicationStarted(system, parent, state);
+                }
+            }
+            else
+            {
+                SetAsRunnableApplicationStarted(system, parent, state);
             }
 
             var htmlFormattedLine = BuildHtmlFromOutput(e.Data);
@@ -418,13 +445,18 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         process.BeginErrorReadLine();
     }
 
-    private static void RunnableApplicationStarted(ActorSystem system, IActorRef parent, DashboardProcessRunnerState state)
+    private static void SetAsRunnableApplicationStarted(ActorSystem system, IActorRef parent, DashboardProcessRunnerState state)
     {
+        if (state.RunStatus == RunStatus.Started)
+        {
+            return;
+        }
+
         UpdateRunStatusAndTellParent(RunStatus.Started, parent, state);
 
         PublishApplicationLogMessage(
             system,
-            state, 
+            state,
             "Application started successfully."
         );
 
@@ -643,7 +675,43 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         }
 
         return result.ToString();
-    }    
+    }
+
+    private static Regex GetPreDefinedRegex(string type) => throw new NotImplementedException("TODO");
+
+    private static ImmutableArray<UrlDetectionWithRegex> GetPreDefinedUrlDetections(string type) => throw new NotImplementedException("TODO");
+
+    private static Func<string, string?> DetectUrlByRegex(ImmutableArray<UrlDetectionWithRegex> urlDetections) => line =>
+    {
+        foreach (var detection in urlDetections)
+        {
+            var match = detection.Regex.Match(line);
+
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var matchedValue = match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
+
+            if (string.IsNullOrWhiteSpace(matchedValue))
+            {
+                continue;
+            }
+
+            if (detection.IsPortOnly && int.TryParse(matchedValue, out var port))
+            {
+                var scheme = detection.IsHttpsWhenPortOnly ? "https" : "http";
+                return $"{scheme}://localhost:{port}";
+            }
+
+            return matchedValue;
+        }
+
+        return null;
+    };
+
+    private static Func<string, bool> DetectStartByRegex(Regex regex) => regex.IsMatch;
 
     [GeneratedRegex(@"\x1B\[([0-9;]*)m|\x1B\][^\x07]*\x07|\x1B\[[0-9;]*[A-Za-ln-z]")]
     private static partial Regex AnsiCodePattern();
