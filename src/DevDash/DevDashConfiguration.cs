@@ -60,6 +60,12 @@ public sealed class DevDashConfiguration
         return this;
     }
 
+    public DevDashConfiguration SetConsoleOutputMaxLines(int maxLines) 
+    {
+        ConsoleOutputMaxLines = maxLines;
+        return this;
+    }
+
     /* internal */
 
     internal Dictionary<string, DotNetApplication> DotNetApplications { get; } = [];
@@ -70,5 +76,9 @@ public sealed class DevDashConfiguration
 
     internal LogLevel LogLevel { get; private set; } = LogLevel.Debug;
 
-    internal ComposeConfiguration? ComposeConfiguration { get; private set; }    
+    internal ComposeConfiguration? ComposeConfiguration { get; private set; }  
+    
+    internal int ConsoleOutputMaxLines { get; private set; } = 100;
+
+    internal int ConsoleOutputLineRemovalBatchSize => Math.Max(1, ConsoleOutputMaxLines / 10);
 }

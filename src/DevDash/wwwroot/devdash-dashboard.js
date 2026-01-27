@@ -181,11 +181,11 @@ const addEventListeners = (eventSource) => {
     });
 
     eventSource.addEventListener(EVENT_NAMES_APPLICATION_OUTPUT_LINE_EMITTED, (e) => {
-        logToConsoleOutput(e, false);
+        addLineToConsoleOutput(e, false);
     });
 
     eventSource.addEventListener(EVENT_NAMES_APPLICATION_ERROR_OUTPUT_LINE_EMITTED, (e) => {
-        logToConsoleOutput(e, true);
+        addLineToConsoleOutput(e, true);
     });
 
     eventSource.addEventListener(EVENT_NAMES_MESSAGE_AREA_MESSAGE_PUBLISHED, (e) => {
@@ -194,7 +194,7 @@ const addEventListeners = (eventSource) => {
     });
 }
 
-const logToConsoleOutput = (e, isError = false) => {
+const addLineToConsoleOutput = (e, isError = false) => {
     const data = JSON.parse(e.data);
     const runnableApplication = runnableApplications[data.id];
 
@@ -203,13 +203,22 @@ const logToConsoleOutput = (e, isError = false) => {
         return;
     }
 
+    const consoleOutput = runnableApplication.consoleOutputElement;
     const isScrolledToBottom = runnableApplication.consoleContainerElement.scrollHeight - runnableApplication.consoleContainerElement.scrollTop
         <= runnableApplication.consoleContainerElement.clientHeight + 5;
 
     const lineElement = document.createElement("div");
     lineElement.className = isError ? "log-line error" : "log-line";
     lineElement.innerHTML = data.line;
-    runnableApplication.consoleOutputElement.appendChild(lineElement);
+    consoleOutput.appendChild(lineElement);
+
+    if (CONFIG_CONSOLE_OUTPUT_MAX_LINES && consoleOutput.childElementCount > window.CONFIG_CONSOLE_OUTPUT_MAX_LINES) {
+        const linesToRemove = window.CONFIG_CONSOLE_OUTPUT_LINE_REMOVAL_BATCH_SIZE || 1;
+
+        for (let i = 0; i < linesToRemove && consoleOutput.firstElementChild; i++) {
+            consoleOutput.firstElementChild.remove();
+        }
+    }
 
     if (isScrolledToBottom) {
         runnableApplication.consoleContainerElement.scrollTop = runnableApplication.consoleContainerElement.scrollHeight;

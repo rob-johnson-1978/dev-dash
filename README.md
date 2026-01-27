@@ -13,7 +13,7 @@ Simple dev dashboard
 rather separate status state in both supervisor and runner. Still use a timer, 
 but handle it in each behaviour state and report based on that instead!
 
-- [ ] Ensure logs don't get too big in UI (eg only last 1000 lines or something)
+- [x] Ensure logs don't get too big in UI (eg only last 1000 lines or something)
 
 - [ ] Custom commands (eg watch vs not)
 

@@ -1,7 +1,10 @@
 @page
+@using DevDash
 @using DevDash.Areas.DevDash.Pages
 @using DevDash.Features.Dashboard
+@inject DevDashConfiguration DevDashConfiguration
 @model DashboardModel
+
 
 @section Styles {
     <link rel="stylesheet" href="_content/DevDash/devdash-dashboard.css" asp-append-version="true" />
@@ -72,6 +75,8 @@
         window.ENUMS_RUNSTATUS_START_REQUESTED = '@RunStatus.StartRequested';
         window.ENUMS_RUNSTATUS_STARTED = '@RunStatus.Started';
         window.ENUMS_RUNSTATUS_STOPPED = '@RunStatus.Stopped';
+        window.CONFIG_CONSOLE_OUTPUT_MAX_LINES = '@DevDashConfiguration.ConsoleOutputMaxLines';
+        window.CONFIG_CONSOLE_OUTPUT_LINE_REMOVAL_BATCH_SIZE = '@DevDashConfiguration.ConsoleOutputLineRemovalBatchSize';
     </script>
     <script type="text/javascript" src="_content/DevDash/devdash-dashboard.js" asp-append-version="true"></script>
 }
