@@ -2,10 +2,50 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+	"strings"
 )
 
 var db *sql.DB
+
+// ensureDatabase creates the database if it doesn't exist
+func ensureDatabase(baseConnStr, dbName string) error {
+	// Connect to the default postgres database to create our target DB
+	adminDB, err := sql.Open("postgres", baseConnStr)
+	if err != nil {
+		return fmt.Errorf("failed to connect to admin database: %w", err)
+	}
+	defer adminDB.Close()
+
+	if err := adminDB.Ping(); err != nil {
+		return fmt.Errorf("failed to ping admin database: %w", err)
+	}
+
+	// Check if database exists
+	var exists bool
+	err = adminDB.QueryRow("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)", dbName).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check if database exists: %w", err)
+	}
+
+	if !exists {
+		// Create database (can't use parameterized query for CREATE DATABASE)
+		// Sanitize dbName to prevent SQL injection
+		if strings.ContainsAny(dbName, "\"';") {
+			return fmt.Errorf("invalid database name: %s", dbName)
+		}
+		_, err = adminDB.Exec(fmt.Sprintf("CREATE DATABASE \"%s\"", dbName))
+		if err != nil {
+			return fmt.Errorf("failed to create database: %w", err)
+		}
+		log.Printf("Created database: %s", dbName)
+	} else {
+		log.Printf("Database already exists: %s", dbName)
+	}
+
+	return nil
+}
 
 func initSchema() error {
 	schema := `

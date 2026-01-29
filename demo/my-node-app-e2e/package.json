@@ -1,0 +1,12 @@
+{
+  "name": "my-node-app-e2e",
+  "version": "1.0.0",
+  "description": "E2E tests for my-node-app API",
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-reporter spec"
+  },
+  "devDependencies": {
+    "pg": "^8.11.3"
+  }
+}

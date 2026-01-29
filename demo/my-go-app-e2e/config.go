@@ -12,7 +12,7 @@ type Config struct {
 func LoadConfig() Config {
 	return Config{
 		APIBaseURL:  getEnv("API_BASE_URL", "http://localhost:8080"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:Secret@Postgres@localhost:5432/postgres?sslmode=disable"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:Secret@Postgres@localhost:5432/go-test?sslmode=disable"),
 	}
 }
 

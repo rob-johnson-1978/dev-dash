@@ -26,6 +26,24 @@ builder.UseDevDash(configuration =>
             FileName = "go",
             Args = ["test", "-v", "./..."],
             StartDetectionRegex = "=== RUN"
+        })
+        .AddGenericProcess(new GenericProcessConfiguration
+        {
+            StartupOrder = 1,
+            Id = "my-node-app",
+            PathToFolder = "../my-node-app",
+            FileName = "npm",
+            Args = ["i", "&&", "start"],
+            UrlDetections = [new(@"Server starting on port (\d+)", IsPortOnly: true, IsHttpsWhenPortOnly: false)]
+        })
+        .AddGenericProcess(new GenericProcessConfiguration
+        {
+            StartupOrder = 3,
+            Id = "my-node-app-e2e",
+            PathToFolder = "../my-node-app-e2e",
+            FileName = "npm",
+            Args = ["test"],
+            StartDetectionRegex = "> node --test"
         });
 });
 

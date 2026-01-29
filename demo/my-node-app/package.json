@@ -1,0 +1,14 @@
+{
+  "name": "my-node-app",
+  "version": "1.0.0",
+  "description": "Node.js API with PostgreSQL - Authors and Books",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "pg": "^8.11.3"
+  }
+}

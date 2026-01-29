@@ -13,7 +13,16 @@ func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
-	connStr := getEnv("DATABASE_URL", "postgres://postgres:Secret@Postgres@localhost:5432/postgres?sslmode=disable")
+	dbName := getEnv("DB_NAME", "go-test")
+	baseConnStr := getEnv("DATABASE_URL", "postgres://postgres:Secret@Postgres@localhost:5432/postgres?sslmode=disable")
+
+	// Ensure the target database exists
+	if err := ensureDatabase(baseConnStr, dbName); err != nil {
+		log.Fatalf("Failed to ensure database exists: %v", err)
+	}
+
+	// Connect to the target database
+	connStr := getEnv("DATABASE_URL", "postgres://postgres:Secret@Postgres@localhost:5432/"+dbName+"?sslmode=disable")
 
 	var err error
 	db, err = sql.Open("postgres", connStr)
@@ -25,7 +34,7 @@ func main() {
 	if err := db.Ping(); err != nil {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
-	log.Println("Connected to database")
+	log.Printf("Connected to database: %s", dbName)
 
 	if err := initSchema(); err != nil {
 		log.Fatalf("Failed to initialize schema: %v", err)
