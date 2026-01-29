@@ -19,7 +19,8 @@ builder.UseDevDash(configuration =>
             Args = ["run", "."],
             UrlDetections = [new(@"Server starting on port (\d+)", IsPortOnly: true, IsHttpsWhenPortOnly: false)]
         })
-        .AddGenericProcess(new GenericProcessConfiguration {
+        .AddGenericProcess(new GenericProcessConfiguration
+        {
             StartupOrder = 3,
             Id = "my-go-app-e2e",
             PathToFolder = "../my-go-app-e2e",
