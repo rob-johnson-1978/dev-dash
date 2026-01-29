@@ -17,10 +17,15 @@ builder.UseDevDash(configuration =>
             PathToFolder = "../my-go-app",
             FileName = "go",
             Args = ["run", "."],
-            StartDetectionRegex = null,
-            PreDefinedStartDetection = null,
-            UrlDetections = [new(@"Server starting on port (\d+)", IsPortOnly: true, IsHttpsWhenPortOnly: false)],
-            PreDefinedUrlDetections = null
+            UrlDetections = [new(@"Server starting on port (\d+)", IsPortOnly: true, IsHttpsWhenPortOnly: false)]
+        })
+        .AddGenericProcess(new GenericProcessConfiguration {
+            StartupOrder = 3,
+            Id = "my-go-app-e2e",
+            PathToFolder = "../my-go-app-e2e",
+            FileName = "go",
+            Args = ["test", "-v", "./..."],
+            StartDetectionRegex = "=== RUN"
         });
 });
 
