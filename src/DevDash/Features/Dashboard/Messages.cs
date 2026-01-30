@@ -47,7 +47,7 @@ internal sealed record StopDashboard;
 internal sealed record RestartDashboard;
 
 /* dashboard - generic process */
-internal sealed record RunGenericProcess(GenericProcessConfiguration Configuration);
+internal sealed record RunGenericProcess(ProcessConfiguration Configuration);
 
 /* dashboard - dotnet application */
 

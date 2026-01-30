@@ -21,7 +21,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
     protected override void PostStop()
     {
-        EnsureProcessIsStopped(_state);
+        EnsureProcessIsStopped(_state, _logger);
     }
 
     protected override void OnReceive(object message)
@@ -32,8 +32,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 {
                     _state.ApplicationId = command.Configuration.Id;
                     _state.WorkingDirectory = command.Configuration.PathToFolder;
-                    _state.FileName = command.Configuration.FileName;
-                    _state.Args = command.Configuration.Args;
+                    _state.Instructions = command.Configuration.Instructions;
 
                     if (command.Configuration.StartDetectionRegex != null)
                     {
@@ -70,12 +69,13 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 }
             case RunDotNetApplication command:
                 {
+                    var instructions = command.Application.LaunchProfile == null
+                        ? "dotnet run"
+                        : $"dotnet run -lp {command.Application.LaunchProfile}";
+
                     _state.ApplicationId = command.Application.Id;
                     _state.WorkingDirectory = command.Application.WorkingDirectoryPath;
-                    _state.FileName = "dotnet";
-                    _state.Args = command.Application.LaunchProfile == null
-                        ? ["run"]
-                        : ["run", "-lp", command.Application.LaunchProfile];
+                    _state.Instructions = instructions;
 
                     if (command.Application.StartDetectionPattern != null)
                     {
@@ -109,14 +109,14 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                     _state.WorkingDirectory = Path.GetDirectoryName(_state.FullComposePath)
                         ?? throw new InvalidOperationException("Could not determine working directory");
 
-                    _state.FileName = command.ComposeType switch
+                    var fileName = command.ComposeType switch
                     {
                         ComposeType.Docker => "docker",
                         ComposeType.Podman => "podman",
                         _ => throw new NotImplementedException()
                     };
 
-                    _state.Args = ["compose", "-f", _state.FullComposePath, "up", "--build", "--force-recreate"];
+                    _state.Instructions = $"{fileName} compose -f {_state.FullComposePath} up --build --force-recreate";
 
                     _state.DetectRunnableApplicationStartedAfterProcessStarted = () =>
                     {
@@ -319,7 +319,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
             "Stopping process"
         );
 
-        EnsureProcessIsStopped(_state);
+        EnsureProcessIsStopped(_state, _logger);
 
         PublishApplicationLogMessage(
             Context.System,
@@ -349,12 +349,24 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
     /* helpers */
 
+    private static (string fileName, string args) BuildFileNameAndArgs(string instructions)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return ("cmd.exe", $"/c {instructions}");
+        }
+
+        return ("/bin/sh", $"-c {instructions}");
+    }
+
     private static Process CreateProcess(ActorSystem system, IActorRef self, IActorRef parent, DashboardProcessRunnerState state)
     {
+        var (fileName, args) = BuildFileNameAndArgs(state.Instructions);
+
         var processStartInfo = new ProcessStartInfo
         {
-            FileName = state.FileName,
-            Arguments = string.Join(" ", state.Args),
+            FileName = fileName,
+            Arguments = args,
             WorkingDirectory = state.WorkingDirectory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -438,6 +450,11 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         return process;
     }
 
+    private static (string fileName, string args) BuildFileNameAndArgs(object instructions)
+    {
+        throw new NotImplementedException();
+    }
+
     private static async Task StartProcess(Process process)
     {
         process.Start();
@@ -484,7 +501,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         );
     }
 
-    private static void EnsureProcessIsStopped(DashboardProcessRunnerState state)
+    private static void EnsureProcessIsStopped(DashboardProcessRunnerState state, ILoggingAdapter logger)
     {
         if (state.Process == null)
         {
@@ -493,32 +510,27 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
         if (state.Process.HasExited)
         {
-            try
-            {
-                state.Process.Dispose();
-                return;
-            }
-            catch
-            {
-            }
+            state.Process.Dispose();
+            return;
         }
 
         try
         {
-            // Kill the entire process tree
             KillProcessTree(state.Process.Id);
+
+            if (!state.Process.WaitForExit(2000))
+            {
+                state.Process.Kill(entireProcessTree: true);
+                state.Process.WaitForExit(1000);
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback to simple kill if tree kill fails
-            try
-            {
-                state.Process.Kill();
-            }
-            catch
-            {
-                // Process might have already exited
-            }
+            logger.Error(ex, "Error while stopping process with ID {0}", state.Process.Id);
+        }
+        finally
+        {
+            state.Process.Dispose();
         }
     }
 

@@ -5,45 +5,62 @@ var builder = WebApplication.CreateBuilder(args);
 builder.UseDevDash(configuration =>
 {
     configuration
-        .SetConsoleOutputMaxLines(20)
+        .SetConsoleOutputMaxLines(50)
         .AddCompose(0, "../compose.yaml", ComposeType.Podman)
-        .AddDotNetApplication(0, "Console-App-1", "../My.ConsoleApp")
-        .AddDotNetWebApplication(1, "Web-Api-1", "../My.WebApi", launchProfile: "http1")
-        .AddDotNetWebApplication(2, "Web-Api-2", "../My.WebApi", launchProfile: "http2")
-        .AddGenericProcess(new GenericProcessConfiguration
+        .AddProcess(new ProcessConfiguration
+        {
+            StartupOrder = 0,
+            Id = "console-app-1",
+            PathToFolder = "../My.ConsoleApp",
+            Instructions = "dotnet run --no-restore --no-build",
+            StartDetectionRegex = "Application started"
+        })
+        .AddProcess(new ProcessConfiguration
+        {
+            StartupOrder = 1,
+            Id = "web-api-1",
+            PathToFolder = "../My.WebApi",
+            Instructions = "dotnet run  --no-restore --no-build --launch-profile http1",
+            UrlDetections = [new(@"Now listening on: (https?://\S+)", IsPortOnly: false, IsHttpsWhenPortOnly: false)]
+        })
+        .AddProcess(new ProcessConfiguration
+        {
+            StartupOrder = 2,
+            Id = "web-api-2",
+            PathToFolder = "../My.WebApi",
+            Instructions = "dotnet run --no-restore --no-build --launch-profile http2",
+            UrlDetections = [new(@"Now listening on: (https?://\S+)", IsPortOnly: false, IsHttpsWhenPortOnly: false)]
+        })
+        .AddProcess(new ProcessConfiguration
         {
             StartupOrder = 1,
             Id = "my-go-app",
             PathToFolder = "../my-go-app",
-            FileName = "go",
-            Args = ["run", "."],
+            Instructions = "go run .",
             UrlDetections = [new(@"Server starting on port (\d+)", IsPortOnly: true, IsHttpsWhenPortOnly: false)]
         })
-        .AddGenericProcess(new GenericProcessConfiguration
+        .AddProcess(new ProcessConfiguration
         {
-            StartupOrder = 3,
+            StartupOrder = 2,
             Id = "my-go-app-e2e",
             PathToFolder = "../my-go-app-e2e",
-            FileName = "go",
-            Args = ["test", "-v", "./..."],
+            Instructions = "go test -v ./...",
             StartDetectionRegex = "=== RUN"
         })
-        .AddGenericProcess(new GenericProcessConfiguration
+        .AddProcess(new ProcessConfiguration
         {
             StartupOrder = 1,
             Id = "my-node-app",
             PathToFolder = "../my-node-app",
-            FileName = "npm",
-            Args = ["i", "&&", "start"],
+            Instructions = "npm i && npm start",
             UrlDetections = [new(@"Server starting on port (\d+)", IsPortOnly: true, IsHttpsWhenPortOnly: false)]
         })
-        .AddGenericProcess(new GenericProcessConfiguration
+        .AddProcess(new ProcessConfiguration
         {
-            StartupOrder = 3,
+            StartupOrder = 2,
             Id = "my-node-app-e2e",
             PathToFolder = "../my-node-app-e2e",
-            FileName = "npm",
-            Args = ["test"],
+            Instructions = "npm test",
             StartDetectionRegex = "> node --test"
         });
 });

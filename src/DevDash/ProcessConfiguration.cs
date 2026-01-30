@@ -2,13 +2,12 @@
 
 namespace DevDash;
 
-public sealed record GenericProcessConfiguration
+public sealed record ProcessConfiguration
 {
     public required int StartupOrder { get; init; }
     public required string Id { get; init; }
     public required string PathToFolder { get; init; }
-    public required string FileName { get; init; }
-    public required string[] Args { get; init; }
+    public required string Instructions { get; init; }
     public string? StartDetectionRegex { get; init; }
     public string? PreDefinedStartDetection { get; init; }
     public UrlDetection[] UrlDetections { get; init; } = [];

@@ -15,33 +15,7 @@ public sealed class DevDashConfiguration
         return this;
     }
 
-    public DevDashConfiguration AddDotNetWebApplication(
-        int startupOrder,
-        string id, 
-        string pathToFolder,
-        string launchProfile)
-    {
-        var lowerId = id.ToLower();
-
-        DotNetApplications[lowerId] = new DotNetApplication(startupOrder, lowerId, pathToFolder, startDetectionPattern: null, launchProfile);
-
-        return this;
-    }
-
-    public DevDashConfiguration AddDotNetApplication(
-        int startupOrder,
-        string id,
-        string pathToFolder,
-        string startDetectionPattern = "application started")
-    {
-        var lowerId = id.ToLower();
-
-        DotNetApplications[lowerId] = new DotNetApplication(startupOrder, lowerId, pathToFolder, startDetectionPattern, launchProfile: null);
-
-        return this;
-    }
-
-    public DevDashConfiguration AddGenericProcess(GenericProcessConfiguration configuration)
+    public DevDashConfiguration AddProcess(ProcessConfiguration configuration)
     {
         GenericProcesses[configuration.Id.ToLower()] = configuration;
         return this;
@@ -74,7 +48,7 @@ public sealed class DevDashConfiguration
 
     /* internal */
 
-    internal Dictionary<string, GenericProcessConfiguration> GenericProcesses { get; } = [];
+    internal Dictionary<string, ProcessConfiguration> GenericProcesses { get; } = [];
 
     internal Dictionary<string, DotNetApplication> DotNetApplications { get; } = [];
 
