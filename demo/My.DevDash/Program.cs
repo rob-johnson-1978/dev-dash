@@ -6,7 +6,7 @@ builder.UseDevDash(configuration =>
 {
     configuration
         .SetConsoleOutputMaxLines(50)
-        .AddCompose(0, "../compose.yaml", ComposeType.Podman)
+        .AddCompose("../compose.yaml", ComposeType.Podman)
         .AddProcess(new ProcessConfiguration
         {
             StartupOrder = 0,

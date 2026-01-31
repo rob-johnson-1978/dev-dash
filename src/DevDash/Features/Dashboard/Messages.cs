@@ -1,6 +1,4 @@
-﻿using Akka.Actor;
-using DevDash.Features.Configuration;
-using DevDash.Infastructure;
+﻿using DevDash.Infastructure;
 using System.Collections.Immutable;
 
 namespace DevDash.Features.Dashboard;
@@ -9,36 +7,36 @@ namespace DevDash.Features.Dashboard;
 
 internal sealed record ConfigureDashboard;
 
-internal sealed record StartRunnableApplications;
+internal sealed record StartRunnableProcesses;
 
-internal interface IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted;
+internal interface IShouldCheckIfNextGroupOfRunnableProcessesCanBeStarted;
 
-internal sealed record CheckIfNextGroupOfRunnableApplicationsCanBeStarted : IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted;
+internal sealed record CheckIfNextGroupOfRunnableProcessesCanBeStarted : IShouldCheckIfNextGroupOfRunnableProcessesCanBeStarted;
 
-internal sealed record RunnableApplicationStarted(string Id) : IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted;
+internal sealed record RunnableProcessStarted(string Id) : IShouldCheckIfNextGroupOfRunnableProcessesCanBeStarted;
 
-internal sealed record UpdateRunnableApplication(RunnableApplication Application);
+internal sealed record UpdateRunnableProcess(RunnableProcess Process);
 
-internal sealed record GetRunnableApplications;
+internal sealed record GetRunnableProcesses;
 
 internal sealed record PublishDashboardUpdate;
 
-internal sealed record PublishUpdateForAllRunnableApplications;
+internal sealed record PublishUpdateForAllRunnableProcesses;
 
-internal interface ICommmandRunnableApplicationsToChangeState
+internal interface ICommmandRunnableProcessesToChangeState
 {
     string Id { get; }
 }
 
-internal sealed record StartRunnableApplication(string Id): ICommmandRunnableApplicationsToChangeState;
+internal sealed record StartRunnableProcess(string Id): ICommmandRunnableProcessesToChangeState;
 
-internal sealed record StopRunnableApplication(string Id) : ICommmandRunnableApplicationsToChangeState;
+internal sealed record StopRunnableProcess(string Id) : ICommmandRunnableProcessesToChangeState;
 
-internal sealed record RestartRunnableApplication(string Id) : ICommmandRunnableApplicationsToChangeState;
+internal sealed record RestartRunnableProcess(string Id) : ICommmandRunnableProcessesToChangeState;
 
 internal sealed record ProcessExited;
 
-internal sealed record ApplicationUrlDetected(string Url);
+internal sealed record ProcessUrlDetected(string Url);
 
 internal sealed record StartDashboard;
 
@@ -48,10 +46,6 @@ internal sealed record RestartDashboard;
 
 /* dashboard - generic process */
 internal sealed record RunGenericProcess(ProcessConfiguration Configuration);
-
-/* dashboard - dotnet application */
-
-internal sealed record RunDotNetApplication(DotNetApplication Application);
 
 /* dashboard - compose */
 
@@ -103,12 +97,12 @@ internal sealed record DashboardEventRaised<TEvent> : IDashboardEventRaised
 
 internal sealed record DashboardStatusPublished(RunStatus Status);
 
-internal sealed record RunnableApplicationsStarting;
+internal sealed record RunnableProcessesStarting;
 
-internal sealed record RunnableApplicationStatusPublished(string ApplicationId, RunStatus Status, ImmutableArray<string> Urls);
+internal sealed record RunnableProcessStatusPublished(string ProcessId, RunStatus Status, ImmutableArray<string> Urls);
 
 internal sealed record MessageAreaMessagePublished(string Message, string Status = "default");
 
-internal sealed record ApplicationOutputLineEmitted(string Id, string Line);
+internal sealed record ProcessOutputLineEmitted(string Id, string Line);
 
-internal sealed record ApplicationErrorOutputLineEmitted(string Id, string Line);
+internal sealed record ProcessErrorOutputLineEmitted(string Id, string Line);

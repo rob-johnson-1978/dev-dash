@@ -49,7 +49,7 @@ internal static class Endpoints
 
         dashboardSupervisorRequiredActor
             .ActorRef
-            .Tell(new StartRunnableApplications());
+            .Tell(new StartRunnableProcesses());
 
         return TypedResults.ServerSentEvents(YieldSseItems(channel, actorSystem, subscriber, linkedCts.Token));
     }
@@ -71,16 +71,16 @@ internal static class Endpoints
         return Results.Accepted();
     }
 
-    internal static async Task<IResult> HandleApplicationCommand(
+    internal static async Task<IResult> HandleProcessCommand(
         [FromServices] IRequiredActor<DashboardSupervisor> dashboardSupervisorRequiredActor,
-        [FromRoute] string applicationId,
+        [FromRoute] string processId,
         [FromRoute] string command)
     {
         object message = command switch
         {
-            "start-application" => new StartRunnableApplication(applicationId),
-            "stop-application" => new StopRunnableApplication(applicationId),
-            "restart-application" => new RestartRunnableApplication(applicationId),
+            "start-process" => new StartRunnableProcess(processId),
+            "stop-process" => new StopRunnableProcess(processId),
+            "restart-process" => new RestartRunnableProcess(processId),
             _ => throw new ArgumentException($"Unknown command: {command}")
         };
 

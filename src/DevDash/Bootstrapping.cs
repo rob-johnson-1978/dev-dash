@@ -3,9 +3,7 @@ using Akka.Hosting;
 using DevDash.Features.Dashboard;
 using DevDash.Features.Dashboard.Actors;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace DevDash;
@@ -87,7 +85,7 @@ public static class Bootstrapping
 
             app.MapGet("/devdash/dashboard/event-stream", Endpoints.HandleEventStreamRequest);
             app.MapPost("/devdash/dashboard/{command}", Endpoints.HandleCommand);
-            app.MapPost("/devdash/dashboard/application/{applicationId}/{command}", Endpoints.HandleApplicationCommand);
+            app.MapPost("/devdash/dashboard/process/{processId}/{command}", Endpoints.HandleProcessCommand);
 
             return app;
         }

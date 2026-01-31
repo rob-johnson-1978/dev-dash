@@ -1,10 +1,9 @@
 ﻿namespace DevDash.Features.Dashboard;
 
-internal enum ApplicationType
+internal enum ProcessType
 {
     Compose,
-    Generic,
-    DotNet
+    Generic
 }
 
 internal enum RunStatus

@@ -1,6 +1,6 @@
 ﻿/* DASHBOARD HOME */
 
-.runnable-applications {
+.runnable-processes {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -8,7 +8,7 @@
     padding: 3rem 0 7rem 3rem;
 }
 
-.runnable-application {
+.runnable-process {
     width: calc(33.333% - 4rem);
     margin: 0 3rem 3rem 0;
     background: #222;
@@ -16,7 +16,7 @@
     box-shadow: 0 0 3px 3px rgba(255,255,255,0.2);
 }
 
-.runnable-application-header {
+.runnable-process-header {
     background: #333;
     padding: 1rem 2rem;
     font-weight: bold;
@@ -26,41 +26,41 @@
     border-radius: 8px 8px 0 0;
 }
 
-    .runnable-application-header > h2 {
+    .runnable-process-header > h2 {
         flex: 1;
         font-size: 2.3rem;
     }
 
-.runnable-application-header-buttons {
+.runnable-process-header-buttons {
     text-align: right;
 }
 
-    .runnable-application-header-buttons > span {
+    .runnable-process-header-buttons > span {
         display: inline-block;
         margin-left: 0.5rem;
     }
 
-    .runnable-application-header-buttons > .start,
-    .runnable-application-header-buttons > .clear-logs {
+    .runnable-process-header-buttons > .start,
+    .runnable-process-header-buttons > .clear-logs {
         margin-left: 2rem;
     }
 
-    .runnable-application.modal-dialog .runnable-application-header-buttons > .full-screen,
-    .runnable-application-header-buttons > .exit-full-screen {
+    .runnable-process.modal-dialog .runnable-process-header-buttons > .full-screen,
+    .runnable-process-header-buttons > .exit-full-screen {
         display: none;
     }
 
-    .runnable-application-header-buttons > .full-screen,
-    .runnable-application.modal-dialog .runnable-application-header-buttons > .exit-full-screen {
+    .runnable-process-header-buttons > .full-screen,
+    .runnable-process.modal-dialog .runnable-process-header-buttons > .exit-full-screen {
         display: inline-block;
     }
 
-    .runnable-application-header-buttons > a.discovered-url {
+    .runnable-process-header-buttons > a.discovered-url {
         display: inline-block;
         margin-left: 1rem;
     }
 
-.runnable-application-console-output {
+.runnable-process-console-output {
     padding: 1rem;
     font-family: monospace;
     white-space: pre;
@@ -71,7 +71,7 @@
     height: 24rem;
 }
 
-.runnable-application.modal-dialog .runnable-application-console-output {
+.runnable-process.modal-dialog .runnable-process-console-output {
     font-size: 14px !important;
     height: calc(100% - 3.5rem);
 }

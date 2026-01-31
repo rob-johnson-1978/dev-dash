@@ -1,5 +1,4 @@
 ﻿using DevDash.Features.Configuration;
-using DevDash.Infastructure;
 using Microsoft.Extensions.Logging;
 
 namespace DevDash;
@@ -8,9 +7,9 @@ public sealed class DevDashConfiguration
 {
     /* public */
 
-    public DevDashConfiguration AddCompose(int startupOrder, string pathToFile, ComposeType composeType, int checkTimeoutInSeconds = 60)
+    public DevDashConfiguration AddCompose(string pathToFile, ComposeType composeType, int checkTimeoutInSeconds = 60)
     {
-        ComposeConfiguration = new ComposeConfiguration(startupOrder, pathToFile, composeType, checkTimeoutInSeconds);
+        ComposeConfiguration = new ComposeConfiguration(int.MinValue, pathToFile, composeType, checkTimeoutInSeconds);
 
         return this;
     }
@@ -49,8 +48,6 @@ public sealed class DevDashConfiguration
     /* internal */
 
     internal Dictionary<string, ProcessConfiguration> GenericProcesses { get; } = [];
-
-    internal Dictionary<string, DotNetApplication> DotNetApplications { get; } = [];
 
     internal Func<Task>? BeforeStart { get; private set; }
 

@@ -10,37 +10,37 @@
     <link rel="stylesheet" href="_content/DevDash/devdash-dashboard.css" asp-append-version="true" />
 }
 
-<div class="runnable-applications">
-    @foreach (var app in Model.RunnableApplications)
+<div class="runnable-processes">
+    @foreach (var proc in Model.RunnableProcesses)
     {
-        <div class="runnable-application" data-application-id="@app.Id">
-            <div class="runnable-application-header">
-                <h2>@app.Id</h2>
-                <div class="runnable-application-header-buttons">
+        <div class="runnable-process" data-process-id="@proc.Id">
+            <div class="runnable-process-header">
+                <h2>@proc.Id</h2>
+                <div class="runnable-process-header-buttons">
                     <span class="button start disabled material-symbols-outlined"
-                          onclick="disableRunnableApplicationButtons('@app.Id'); sendDashboardApplicationCommand('@app.Id', 'start-application');"
-                          title="Start application">play_circle</span>
+                          onclick="disableRunnableProcessButtons('@proc.Id'); sendDashboardProcessCommand('@proc.Id', 'start-process');"
+                          title="Start process">play_circle</span>
                     <span class="button stop disabled material-symbols-outlined"
-                          onclick="disableRunnableApplicationButtons('@app.Id'); sendDashboardApplicationCommand('@app.Id', 'stop-application');"
-                          title="Stop application">stop_circle</span>
+                          onclick="disableRunnableProcessButtons('@proc.Id'); sendDashboardProcessCommand('@proc.Id', 'stop-process');"
+                          title="Stop process">stop_circle</span>
                     <span class="button restart disabled material-symbols-outlined"
-                          onclick="disableRunnableApplicationButtons('@app.Id'); sendDashboardApplicationCommand('@app.Id', 'restart-application');"
-                          title="Restart application">settings_backup_restore</span>
+                          onclick="disableRunnableProcessButtons('@proc.Id'); sendDashboardProcessCommand('@proc.Id', 'restart-process');"
+                          title="Restart process">settings_backup_restore</span>
                     <span class="button clear-logs material-symbols-outlined"
-                          onclick="clearLogs('@app.Id')"
-                          title="Clear application logs">clear_all</span>
+                          onclick="clearLogs('@proc.Id')"
+                          title="Clear process logs">clear_all</span>
                     <span class="button material-symbols-outlined"
-                          onclick="copyOutput('@app.Id')"
+                          onclick="copyOutput('@proc.Id')"
                           title="Copy log output">content_copy</span>
                     <span class="button full-screen material-symbols-outlined"
-                          onclick="expandOrCollapseRunnableApplication('@app.Id')"
+                          onclick="expandOrCollapseRunnableProcess('@proc.Id')"
                           title="Expand">fullscreen</span>
                     <span class="button exit-full-screen material-symbols-outlined"
-                          onclick="expandOrCollapseRunnableApplication('@app.Id')"
+                          onclick="expandOrCollapseRunnableProcess('@proc.Id')"
                           title="Collapse">fullscreen_exit</span>
                 </div>
             </div>
-            <div class="runnable-application-console-output"><pre><code></code></pre></div>
+            <div class="runnable-process-console-output"><pre><code></code></pre></div>
         </div>
     }
 </div>
@@ -66,11 +66,11 @@
 @section Scripts {
     <script type="text/javascript">
         window.EVENT_NAMES_DASHBOARD_STATUS_PUBLISHED = '@nameof(DashboardStatusPublished)';
-        window.EVENT_NAMES_RUNNABLE_APPLICATIONS_STARTING = '@nameof(RunnableApplicationsStarting)';
-        window.EVENT_NAMES_RUNNABLE_APPLICATION_STATUS_PUBLISHED = '@nameof(RunnableApplicationStatusPublished)';
+        window.EVENT_NAMES_RUNNABLE_PROCESSES_STARTING = '@nameof(RunnableProcessesStarting)';
+        window.EVENT_NAMES_RUNNABLE_PROCESS_STATUS_PUBLISHED = '@nameof(RunnableProcessStatusPublished)';
         window.EVENT_NAMES_MESSAGE_AREA_MESSAGE_PUBLISHED = '@nameof(MessageAreaMessagePublished)';
-        window.EVENT_NAMES_APPLICATION_OUTPUT_LINE_EMITTED = '@nameof(ApplicationOutputLineEmitted)';
-        window.EVENT_NAMES_APPLICATION_ERROR_OUTPUT_LINE_EMITTED = '@nameof(ApplicationErrorOutputLineEmitted)';
+        window.EVENT_NAMES_PROCESS_OUTPUT_LINE_EMITTED = '@nameof(ProcessOutputLineEmitted)';
+        window.EVENT_NAMES_PROCESS_ERROR_OUTPUT_LINE_EMITTED = '@nameof(ProcessErrorOutputLineEmitted)';
         window.ENUMS_RUNSTATUS_NEVER_STARTED = '@RunStatus.NeverStarted';
         window.ENUMS_RUNSTATUS_START_REQUESTED = '@RunStatus.StartRequested';
         window.ENUMS_RUNSTATUS_STARTED = '@RunStatus.Started';

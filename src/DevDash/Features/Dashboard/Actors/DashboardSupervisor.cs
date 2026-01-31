@@ -2,14 +2,13 @@
 using Akka.Event;
 using DevDash;
 using DevDash.Infastructure;
-using Google.Protobuf.WellKnownTypes;
 using System.Collections.Immutable;
 
 namespace DevDash.Features.Dashboard.Actors;
 
 internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : UntypedActor, IWithUnboundedStash, IWithTimers
 {
-    private const string UpdateTimerKey = "publish-runnable-application-timer-key";
+    private const string UpdateTimerKey = "publish-runnable-process-timer-key";
     private readonly ILoggingAdapter _logger = Context.GetLogger();
     private DashboardSupervisorState _state = new();
 
@@ -52,25 +51,25 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     if (configuration.ComposeConfiguration != null)
                     {
-                        _state.RunnableApplications.Add(
-                            Constants.DockerComposeApplicationId,
-                            new RunnableApplicationWithActor(
-                                ApplicationType.Compose,
+                        _state.RunnableProcesses.Add(
+                            Constants.DockerComposeProcessId,
+                            new RunnableProcessWithActor(
+                                ProcessType.Compose,
                                 configuration.ComposeConfiguration.StartupOrder,
-                                Constants.DockerComposeApplicationId,
+                                Constants.DockerComposeProcessId,
                                 RunStatus.NeverStarted,
                                 [],
-                                Context.ActorOf<DashboardProcessRunner>(BuildProcessActorName(Constants.DockerComposeApplicationId))
+                                Context.ActorOf<DashboardProcessRunner>(BuildProcessActorName(Constants.DockerComposeProcessId))
                             )
                         );
                     }
 
                     foreach(var process in configuration.GenericProcesses)
                     {
-                        _state.RunnableApplications.Add(
+                        _state.RunnableProcesses.Add(
                             process.Key,
-                            new RunnableApplicationWithActor(
-                                ApplicationType.Generic,
+                            new RunnableProcessWithActor(
+                                ProcessType.Generic,
                                 process.Value.StartupOrder,
                                 process.Key,
                                 RunStatus.NeverStarted,
@@ -80,26 +79,9 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         );
                     }
 
-                    foreach (var applicationKeyValuePair in configuration.DotNetApplications)
-                    {
-                        _state.RunnableApplications.Add(
-                            applicationKeyValuePair.Key,
-                            new RunnableApplicationWithActor(
-                                ApplicationType.DotNet,
-                                applicationKeyValuePair.Value.StartupOrder,
-                                applicationKeyValuePair.Key,
-                                RunStatus.NeverStarted,
-                                [],
-                                Context.ActorOf<DashboardProcessRunner>(BuildProcessActorName(applicationKeyValuePair.Key))
-                            )
-                        );
-                    }
+                    _state.CurrentGroupOfProcessesToBeStarted = _state.RunnableProcesses.Values.Min(x => x.StartupOrder) - 1;
 
-                    // todo: more application types here
-
-                    _state.CurrentGroupOfApplicationsToBeStarted = _state.RunnableApplications.Values.Min(x => x.StartupOrder) - 1;
-
-                    _logger.Info("Dashboard configured with {0} runnable applications.", _state.RunnableApplications.Count);
+                    _logger.Info("Dashboard configured with {0} runnable processes.", _state.RunnableProcesses.Count);
 
                     _state.RunStatus = RunStatus.Stopped;
 
@@ -126,7 +108,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
     {
         switch (message)
         {
-            case StartRunnableApplications:
+            case StartRunnableProcesses:
                 {
                     _state.RunStatus = RunStatus.Started;
 
@@ -134,28 +116,28 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         .System
                         .EventStream
                         .Publish(DashboardEventRaised.Create(
-                            new MessageAreaMessagePublished("Starting applications"))
+                            new MessageAreaMessagePublished("Starting processes"))
                         );
 
-                    _logger.Info("Starting runnable applications...");
+                    _logger.Info("Starting runnable processes...");
 
-                    HandlePublishUpdateForAllRunnableApplications();
+                    HandlePublishUpdateForAllRunnableProcesses();
 
                     RunTask(async () => await Task.Delay(2000));
 
-                    Context.System.EventStream.Publish(DashboardEventRaised.Create(new RunnableApplicationsStarting()));
+                    Context.System.EventStream.Publish(DashboardEventRaised.Create(new RunnableProcessesStarting()));
 
-                    Become(StartingRunnableApplications);
+                    Become(StartingRunnableProcesses);
 
-                    Self.Tell(new CheckIfNextGroupOfRunnableApplicationsCanBeStarted());
+                    Self.Tell(new CheckIfNextGroupOfRunnableProcessesCanBeStarted());
 
                     Stash.UnstashAll();
 
                     break;
                 }
-            case GetRunnableApplications:
+            case GetRunnableProcesses:
                 {
-                    HandleGetRunnableApplications();
+                    HandleGetRunnableProcesses();
                     break;
                 }
             case StartDashboard:
@@ -176,18 +158,18 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         }
     }
 
-    private void StartingRunnableApplications(object message)
+    private void StartingRunnableProcesses(object message)
     {
         switch (message)
         {
-            case GetRunnableApplications:
+            case GetRunnableProcesses:
                 {
-                    HandleGetRunnableApplications();
+                    HandleGetRunnableProcesses();
                     break;
                 }
-            case UpdateRunnableApplication command:
+            case UpdateRunnableProcess command:
                 {
-                    HandleUpdateRunnableApplication(command);
+                    HandleUpdateRunnableProcess(command);
                     break;
                 }
             case StopDashboard:
@@ -205,35 +187,35 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                     HandlePublishDashboardUpdate();
                     break;
                 }
-            case IShouldCheckIfNextGroupOfRunnableApplicationsCanBeStarted:
+            case IShouldCheckIfNextGroupOfRunnableProcessesCanBeStarted:
                 {
                     var currentlyWaitingForStartedMessages = _state
-                        .RunnableApplications
+                        .RunnableProcesses
                         .Values
-                        .Any(x => x.StartupOrder == _state.CurrentGroupOfApplicationsToBeStarted && x.RunStatus == RunStatus.StartRequested);
+                        .Any(x => x.StartupOrder == _state.CurrentGroupOfProcessesToBeStarted && x.RunStatus == RunStatus.StartRequested);
 
                     if (currentlyWaitingForStartedMessages)
                     {
-                        _logger.Info("Waiting for more applications in the current group (Order: {0}) to start...", _state.CurrentGroupOfApplicationsToBeStarted);
+                        _logger.Info("Waiting for more processes in the current group (Order: {0}) to start...", _state.CurrentGroupOfProcessesToBeStarted);
                         break;
                     }
 
                     var moreGroupsToRun = _state
-                        .RunnableApplications
+                        .RunnableProcesses
                         .Values
-                        .Any(x => x.StartupOrder > _state.CurrentGroupOfApplicationsToBeStarted);
+                        .Any(x => x.StartupOrder > _state.CurrentGroupOfProcessesToBeStarted);
 
                     if (!moreGroupsToRun)
                     {
-                        _logger.Info("All runnable applications have been started.");
+                        _logger.Info("All runnable processes have been started.");
 
-                        Become(RunnableApplicationsStartedForTheFirstTime);
+                        Become(RunnableProcessesStartedForTheFirstTime);
 
                         Stash.UnstashAll();
 
                         Timers.StartPeriodicTimer(
                             UpdateTimerKey,
-                            new PublishUpdateForAllRunnableApplications(),
+                            new PublishUpdateForAllRunnableProcesses(),
                             TimeSpan.Zero,
                             TimeSpan.FromMilliseconds(500)
                         );
@@ -242,32 +224,32 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                             .System
                             .EventStream
                             .Publish(DashboardEventRaised.Create(
-                                new MessageAreaMessagePublished("All applications started", "success"))
+                                new MessageAreaMessagePublished("All processes started", "success"))
                             );
 
                         break;
                     }
 
-                    var nextGroupNumber = _state.CurrentGroupOfApplicationsToBeStarted = _state
-                        .RunnableApplications
+                    var nextGroupNumber = _state.CurrentGroupOfProcessesToBeStarted = _state
+                        .RunnableProcesses
                         .Values
-                        .Where(x => x.StartupOrder > _state.CurrentGroupOfApplicationsToBeStarted)
+                        .Where(x => x.StartupOrder > _state.CurrentGroupOfProcessesToBeStarted)
                         .Min(x => x.StartupOrder);
 
-                    _logger.Info("Starting next group of runnable applications (Order: {0})...", nextGroupNumber);
+                    _logger.Info("Starting next group of runnable processes (Order: {0})...", nextGroupNumber);
 
-                    var applicationsToStart = _state
-                        .RunnableApplications
+                    var processesToStart = _state
+                        .RunnableProcesses
                         .Values
                         .Where(x => x.StartupOrder == nextGroupNumber);
 
-                    foreach (var application in applicationsToStart)
+                    foreach (var proc in processesToStart)
                     {
-                        switch (application.Type)
+                        switch (proc.Type)
                         {
-                            case ApplicationType.Compose:
+                            case ProcessType.Compose:
                                 {
-                                    application
+                                    proc
                                         .ActorRef?
                                         .Tell(
                                             new RunCompose(
@@ -279,27 +261,15 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                                     break;
                                 }
-                            case ApplicationType.Generic:
+                            case ProcessType.Generic:
                                 {
-                                    application
+                                    proc
                                         .ActorRef?
                                         .Tell(
                                             new RunGenericProcess(
-                                                configuration.GenericProcesses[application.Id]
+                                                configuration.GenericProcesses[proc.Id]
                                             )
                                         );
-                                    break;
-                                }
-                            case ApplicationType.DotNet:
-                                {
-                                    application
-                                        .ActorRef?
-                                        .Tell(
-                                            new RunDotNetApplication(
-                                                configuration.DotNetApplications[application.Id]
-                                            )
-                                        );
-
                                     break;
                                 }
                             default:
@@ -317,18 +287,18 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         }
     }
 
-    private void RunnableApplicationsStartedForTheFirstTime(object message)
+    private void RunnableProcessesStartedForTheFirstTime(object message)
     {
         switch (message)
         {
-            case GetRunnableApplications:
+            case GetRunnableProcesses:
                 {
-                    HandleGetRunnableApplications();
+                    HandleGetRunnableProcesses();
                     break;
                 }
-            case UpdateRunnableApplication command:
+            case UpdateRunnableProcess command:
                 {
-                    HandleUpdateRunnableApplication(command);
+                    HandleUpdateRunnableProcess(command);
                     break;
                 }
             case StopDashboard:
@@ -346,21 +316,21 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                     HandlePublishDashboardUpdate();
                     break;
                 }
-            case ICommmandRunnableApplicationsToChangeState command:
+            case ICommmandRunnableProcessesToChangeState command:
                 {
-                    if (!_state.RunnableApplications.TryGetValue(command.Id, out var runnableApplication))
+                    if (!_state.RunnableProcesses.TryGetValue(command.Id, out var runnableProcess))
                     {
-                        _logger.Warning("Received stop request for unknown application ID: {0}", command.Id);
+                        _logger.Warning("Received stop request for unknown process ID: {0}", command.Id);
                         break;
                     }
 
-                    runnableApplication.ActorRef.Forward(command);
+                    runnableProcess.ActorRef.Forward(command);
 
                     break;
                 }
-            case PublishUpdateForAllRunnableApplications:
+            case PublishUpdateForAllRunnableProcesses:
                 {
-                    HandlePublishUpdateForAllRunnableApplications();
+                    HandlePublishUpdateForAllRunnableProcesses();
                     break;
                 }
             default:
@@ -370,36 +340,36 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         }
     }
 
-    private void HandleGetRunnableApplications()
+    private void HandleGetRunnableProcesses()
     {
         Context.Sender.Tell(
-            _state.RunnableApplications
-                .Select(r => new RunnableApplication(r.Key, r.Value.RunStatus, r.Value.Urls))
+            _state.RunnableProcesses
+                .Select(r => new RunnableProcess(r.Key, r.Value.RunStatus, r.Value.Urls))
                 .ToImmutableArray()
         );
     }
 
-    private void HandleUpdateRunnableApplication(UpdateRunnableApplication command)
+    private void HandleUpdateRunnableProcess(UpdateRunnableProcess command)
     {
-        if (!_state.RunnableApplications.TryGetValue(command.Application.Id, out var runnableApplication))
+        if (!_state.RunnableProcesses.TryGetValue(command.Process.Id, out var runnableProcess))
         {
-            _logger.Warning("Received update for unknown application ID: {0}", command.Application.Id);
+            _logger.Warning("Received update for unknown process ID: {0}", command.Process.Id);
             return;
         }
 
-        var updatedApplication = runnableApplication with
+        var updatedProcess = runnableProcess with
         {
-            RunStatus = command.Application.RunStatus,
-            Urls = command.Application.Urls
+            RunStatus = command.Process.RunStatus,
+            Urls = command.Process.Urls
         };
 
-        _state.RunnableApplications[command.Application.Id] = updatedApplication;
+        _state.RunnableProcesses[command.Process.Id] = updatedProcess;
 
         _logger.Info(
-            "Runnable application updated: {0}, RunStatus: {1}, URLs: {2}",
-            command.Application.Id,
-            command.Application.RunStatus,
-            string.Join(", ", command.Application.Urls)
+            "Runnable process updated: {0}, RunStatus: {1}, URLs: {2}",
+            command.Process.Id,
+            command.Process.RunStatus,
+            string.Join(", ", command.Process.Urls)
         );
     }
 
@@ -412,13 +382,13 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         );
     }
 
-    private void HandlePublishUpdateForAllRunnableApplications()
+    private void HandlePublishUpdateForAllRunnableProcesses()
     {
-        foreach (var app in _state.RunnableApplications.Values)
+        foreach (var proc in _state.RunnableProcesses.Values)
         {
             Context.System.EventStream.Publish(
                 DashboardEventRaised.Create(
-                    new RunnableApplicationStatusPublished(app.Id, app.RunStatus, app.Urls)
+                    new RunnableProcessStatusPublished(proc.Id, proc.RunStatus, proc.Urls)
                 )
             );
         }
@@ -435,7 +405,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
         _logger.Info("Starting dashboard after UI command...");
 
-        Self.Tell(new StartRunnableApplications());
+        Self.Tell(new StartRunnableProcesses());
     }
 
     private void HandleStopDashboardCommand()
@@ -465,16 +435,16 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
         ReconfigureAll();
 
-        Self.Tell(new StartRunnableApplications());
+        Self.Tell(new StartRunnableProcesses());
     }
 
     private void ReconfigureAll()
     {
         RunTask(async () =>
         {
-            foreach (var app in _state.RunnableApplications.Values)
+            foreach (var proc in _state.RunnableProcesses.Values)
             {
-                await app.ActorRef.GracefulStop(TimeSpan.FromSeconds(5));
+                await proc.ActorRef.GracefulStop(TimeSpan.FromSeconds(5));
             }
         });
 
@@ -488,8 +458,8 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         Self.Tell(new ConfigureDashboard());
     }
 
-    private static string BuildProcessActorName(string applicationId)
+    private static string BuildProcessActorName(string processId)
     {
-        return $"dashboard-process-runner-{applicationId}-{Guid.NewGuid()}";
+        return $"dashboard-process-runner-{processId}-{Guid.NewGuid()}";
     }
 }

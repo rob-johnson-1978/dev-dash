@@ -2,5 +2,5 @@
 
 internal static class Constants
 {
-    internal const string DockerComposeApplicationId = "compose";
+    internal const string DockerComposeProcessId = "compose";
 }

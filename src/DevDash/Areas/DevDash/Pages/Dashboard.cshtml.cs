@@ -12,14 +12,14 @@ internal class DashboardModel(IRequiredActor<DashboardSupervisor> dashboardSuper
 {
     public async Task OnGet()
     {
-        RunnableApplications = await dashboardSupervisorRequiredActor
+        RunnableProcesses = await dashboardSupervisorRequiredActor
             .ActorRef
-            .Ask<ImmutableArray<RunnableApplication>>(
-                new GetRunnableApplications(),
+            .Ask<ImmutableArray<RunnableProcess>>(
+                new GetRunnableProcesses(),
                 TimeSpan.FromSeconds(5),
                 HttpContext.RequestAborted
             );
     }
 
-    internal ImmutableArray<RunnableApplication> RunnableApplications { get; set; } = [];
+    internal ImmutableArray<RunnableProcess> RunnableProcesses { get; set; } = [];
 }

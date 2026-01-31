@@ -1,7 +1,6 @@
 ﻿using Akka.Actor;
 using Akka.Event;
 using DevDash.Infastructure;
-using Google.Protobuf.WellKnownTypes;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -30,25 +29,25 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         {
             case RunGenericProcess command:
                 {
-                    _state.ApplicationId = command.Configuration.Id;
+                    _state.ProcessId = command.Configuration.Id;
                     _state.WorkingDirectory = command.Configuration.PathToFolder;
                     _state.Instructions = command.Configuration.Instructions;
 
                     if (command.Configuration.StartDetectionRegex != null)
                     {
-                        _state.DetectRunnableApplicationStartedViaStdOut =
+                        _state.DetectRunnableProcessStartedViaStdOut =
                             DetectStartByRegex(new Regex(command.Configuration.StartDetectionRegex));
                     }
 
                     if (command.Configuration.PreDefinedStartDetection != null)
                     {
-                        _state.DetectRunnableApplicationStartedViaStdOut =
+                        _state.DetectRunnableProcessStartedViaStdOut =
                             DetectStartByRegex(GetPreDefinedRegex(command.Configuration.PreDefinedStartDetection));
                     }
 
                     if (command.Configuration.UrlDetections.Length > 0)
                     {
-                        _state.DetectRunnableApplicationStartedUrlViaStdOut =
+                        _state.DetectRunnableProcessStartedUrlViaStdOut =
                             DetectUrlByRegex(
                                 [.. command
                                     .Configuration
@@ -60,41 +59,8 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     if (command.Configuration.PreDefinedUrlDetections != null)
                     {
-                        _state.DetectRunnableApplicationStartedUrlViaStdOut =
+                        _state.DetectRunnableProcessStartedUrlViaStdOut =
                             DetectUrlByRegex(GetPreDefinedUrlDetections(command.Configuration.PreDefinedUrlDetections));
-                    }
-
-                    HandleProcessStart();
-                    break;
-                }
-            case RunDotNetApplication command:
-                {
-                    var instructions = command.Application.LaunchProfile == null
-                        ? "dotnet run"
-                        : $"dotnet run -lp {command.Application.LaunchProfile}";
-
-                    _state.ApplicationId = command.Application.Id;
-                    _state.WorkingDirectory = command.Application.WorkingDirectoryPath;
-                    _state.Instructions = instructions;
-
-                    if (command.Application.StartDetectionPattern != null)
-                    {
-                        _state.DetectRunnableApplicationStartedViaStdOut =
-                            line => line.Contains(command.Application.StartDetectionPattern, StringComparison.OrdinalIgnoreCase);
-                    }
-
-                    if (command.Application.LaunchProfile != null)
-                    {
-                        _state.DetectRunnableApplicationStartedUrlViaStdOut = line =>
-                        {
-                            var match = FindUrlInDotNetMessagePattern().Match(line);
-                            if (match.Success && match.Groups.Count > 1)
-                            {
-                                return match.Groups[1].Value;
-                            }
-
-                            return null;
-                        };
                     }
 
                     HandleProcessStart();
@@ -102,7 +68,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 }
             case RunCompose command:
                 {
-                    _state.ApplicationId = Constants.DockerComposeApplicationId;
+                    _state.ProcessId = Constants.DockerComposeProcessId;
 
                     _state.FullComposePath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), command.ComposeFilePath));
 
@@ -118,7 +84,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     _state.Instructions = $"{fileName} compose -f {_state.FullComposePath} up --build --force-recreate";
 
-                    _state.DetectRunnableApplicationStartedAfterProcessStarted = () =>
+                    _state.DetectRunnableProcessStartedAfterProcessStarted = () =>
                     {
                         var composeStatusProvider = Context.ActorOf<ComposeStatusProvider>();
 
@@ -147,7 +113,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
     {
         switch (message)
         {
-            case ICommmandRunnableApplicationsToChangeState command:
+            case ICommmandRunnableProcessesToChangeState command:
                 {
                     if (_state.Process == null || _state.RunStatus != RunStatus.Started)
                     {
@@ -156,16 +122,16 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     switch (command)
                     {
-                        case StopRunnableApplication:
+                        case StopRunnableProcess:
                             {
                                 HandleProcessStop();
                                 break;
                             }
-                        case RestartRunnableApplication:
+                        case RestartRunnableProcess:
                             {
                                 Become(WaitingForProcessToStopBeforeRestart);
 
-                                Self.Tell(new StopRunnableApplication(_state.ApplicationId));
+                                Self.Tell(new StopRunnableProcess(_state.ProcessId));
 
                                 break;
                             }
@@ -182,7 +148,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                     HandleProcessExited();
                     break;
                 }
-            case ApplicationUrlDetected @event:
+            case ProcessUrlDetected @event:
                 {
                     var lowerUrl = @event.Url.ToLower();
 
@@ -193,24 +159,24 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     _state.Urls.Add(lowerUrl);
 
-                    if (_state.DetectRunnableApplicationStartedUrlViaStdOut != null)
+                    if (_state.DetectRunnableProcessStartedUrlViaStdOut != null)
                     {
-                        SetAsRunnableApplicationStarted(Context.System, Context.Parent, _state);
+                        SetAsRunnableProcessStarted(Context.System, Context.Parent, _state);
                     }
 
                     break;
                 }
             case ComposeStarted:
                 {
-                    SetAsRunnableApplicationStarted(Context.System, Context.Parent, _state);
+                    SetAsRunnableProcessStarted(Context.System, Context.Parent, _state);
                     break;
                 }
             case ComposeStartFailed:
                 {
-                    PublishApplicationLogMessage(
+                    PublishProcessLogMessage(
                         Context.System,
                         _state,
-                        "Compose failed to start, or start could not be detected. Please fix issues and restart the application."
+                        "Compose failed to start, or start could not be detected. Please fix issues and restart the process."
                     );
 
                     break;
@@ -226,11 +192,11 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
     {
         switch (message)
         {
-            case StopRunnableApplication:
+            case StopRunnableProcess:
                 {
                     HandleProcessStop();
 
-                    Self.Tell(new StartRunnableApplication(_state.ApplicationId));
+                    Self.Tell(new StartRunnableProcess(_state.ProcessId));
 
                     break;
                 }
@@ -245,17 +211,17 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
     {
         switch (messsage)
         {
-            case ICommmandRunnableApplicationsToChangeState command:
+            case ICommmandRunnableProcessesToChangeState command:
                 {
                     if (_state.Process == null)
                     {
-                        _logger.Warning("Received {0} command but no dashboard process is available.", nameof(ICommmandRunnableApplicationsToChangeState));
+                        _logger.Warning("Received {0} command but no dashboard process is available.", nameof(ICommmandRunnableProcessesToChangeState));
                         break;
                     }
 
                     switch (command)
                     {
-                        case StartRunnableApplication:
+                        case StartRunnableProcess:
                             {
                                 HandleProcessStart();
                                 break;
@@ -286,7 +252,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
     {
         UpdateRunStatusAndTellParent(RunStatus.StartRequested, Context.Parent, _state);
 
-        PublishApplicationLogMessage(
+        PublishProcessLogMessage(
             Context.System,
             _state,
             "Starting process"
@@ -294,11 +260,11 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
         _state.Process = CreateProcess(Context.System, Self, Context.Parent, _state);
 
-        _state.DetectRunnableApplicationStartedAfterProcessStarted?.Invoke();
+        _state.DetectRunnableProcessStartedAfterProcessStarted?.Invoke();
 
         RunTask(async () => await StartProcess(_state.Process));
 
-        PublishApplicationLogMessage(
+        PublishProcessLogMessage(
             Context.System,
             _state,
             "Process started. Waiting for output..."
@@ -313,7 +279,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
     {
         _state.Urls.Clear();
 
-        PublishApplicationLogMessage(
+        PublishProcessLogMessage(
             Context.System,
             _state,
             "Stopping process"
@@ -321,7 +287,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
         EnsureProcessIsStopped(_state, _logger);
 
-        PublishApplicationLogMessage(
+        PublishProcessLogMessage(
             Context.System,
             _state,
             "Process stopped"
@@ -398,33 +364,33 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 return;
             }
 
-            if (state.DetectRunnableApplicationStartedUrlViaStdOut != null)
+            if (state.DetectRunnableProcessStartedUrlViaStdOut != null)
             {
-                var url = state.DetectRunnableApplicationStartedUrlViaStdOut(e.Data);
+                var url = state.DetectRunnableProcessStartedUrlViaStdOut(e.Data);
 
                 if (url != null && !string.IsNullOrWhiteSpace(url))
                 {
-                    self.Tell(new ApplicationUrlDetected(url));
+                    self.Tell(new ProcessUrlDetected(url));
                 }
             }
-            else if (state.DetectRunnableApplicationStartedViaStdOut != null)
+            else if (state.DetectRunnableProcessStartedViaStdOut != null)
             {
-                var started = state.DetectRunnableApplicationStartedViaStdOut(e.Data);
+                var started = state.DetectRunnableProcessStartedViaStdOut(e.Data);
 
                 if (started)
                 {
-                    SetAsRunnableApplicationStarted(system, parent, state);
+                    SetAsRunnableProcessStarted(system, parent, state);
                 }
             }
             else
             {
-                SetAsRunnableApplicationStarted(system, parent, state);
+                SetAsRunnableProcessStarted(system, parent, state);
             }
 
             var htmlFormattedLine = BuildHtmlFromOutput(e.Data);
 
             system.EventStream.Publish(
-                DashboardEventRaised.Create(new ApplicationOutputLineEmitted(state.ApplicationId, htmlFormattedLine))
+                DashboardEventRaised.Create(new ProcessOutputLineEmitted(state.ProcessId, htmlFormattedLine))
             );
         };
 
@@ -438,7 +404,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
             var line = BuildHtmlFromOutput(e.Data);
 
             system.EventStream.Publish(
-                DashboardEventRaised.Create(new ApplicationErrorOutputLineEmitted(state.ApplicationId, line))
+                DashboardEventRaised.Create(new ProcessErrorOutputLineEmitted(state.ProcessId, line))
             );
         };
 
@@ -450,11 +416,6 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         return process;
     }
 
-    private static (string fileName, string args) BuildFileNameAndArgs(object instructions)
-    {
-        throw new NotImplementedException();
-    }
-
     private static async Task StartProcess(Process process)
     {
         process.Start();
@@ -462,7 +423,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         process.BeginErrorReadLine();
     }
 
-    private static void SetAsRunnableApplicationStarted(ActorSystem system, IActorRef parent, DashboardProcessRunnerState state)
+    private static void SetAsRunnableProcessStarted(ActorSystem system, IActorRef parent, DashboardProcessRunnerState state)
     {
         if (state.RunStatus == RunStatus.Started)
         {
@@ -471,32 +432,32 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
         UpdateRunStatusAndTellParent(RunStatus.Started, parent, state);
 
-        PublishApplicationLogMessage(
+        PublishProcessLogMessage(
             system,
             state,
-            "Application started successfully."
+            "Process started successfully."
         );
 
-        parent.Tell(new RunnableApplicationStarted(state.ApplicationId));
+        parent.Tell(new RunnableProcessStarted(state.ProcessId));
     }
 
     private static void UpdateRunStatusAndTellParent(RunStatus runStatus, IActorRef parent, DashboardProcessRunnerState state)
     {
         state.RunStatus = runStatus;
 
-        parent.Tell(new UpdateRunnableApplication(
-            new RunnableApplication(state.ApplicationId, state.RunStatus, [.. state.Urls])
+        parent.Tell(new UpdateRunnableProcess(
+            new RunnableProcess(state.ProcessId, state.RunStatus, [.. state.Urls])
         ));
     }
 
-    private static void PublishApplicationLogMessage(ActorSystem system, DashboardProcessRunnerState state, string message)
+    private static void PublishProcessLogMessage(ActorSystem system, DashboardProcessRunnerState state, string message)
     {
         var typeName = typeof(DashboardProcessRunner).FullName ?? nameof(DashboardProcessRunner);
         var formattedMessage = $"<span class=\"ansi-devdash\">ddsh</span>: {typeName}[0]{Environment.NewLine}      {System.Net.WebUtility.HtmlEncode(message)}";
 
         system.EventStream.Publish(
             DashboardEventRaised.Create(
-                new ApplicationOutputLineEmitted(state.ApplicationId, formattedMessage)
+                new ProcessOutputLineEmitted(state.ProcessId, formattedMessage)
             )
         );
     }
@@ -727,7 +688,4 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
     [GeneratedRegex(@"\x1B\[([0-9;]*)m|\x1B\][^\x07]*\x07|\x1B\[[0-9;]*[A-Za-ln-z]")]
     private static partial Regex AnsiCodePattern();
-
-    [GeneratedRegex(@"Now listening on:\s+(https?://\S+)", RegexOptions.IgnoreCase, "en-GB")]
-    private static partial Regex FindUrlInDotNetMessagePattern();
 }
