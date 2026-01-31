@@ -55,7 +55,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                             Constants.DockerComposeProcessId,
                             new RunnableProcessWithActor(
                                 ProcessType.Compose,
-                                configuration.ComposeConfiguration.StartupOrder,
+                                int.MinValue + 1,
                                 Constants.DockerComposeProcessId,
                                 RunStatus.NeverStarted,
                                 [],
@@ -81,7 +81,16 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
 
                     _state.CurrentGroupOfProcessesToBeStarted = _state.RunnableProcesses.Values.Min(x => x.StartupOrder) - 1;
 
-                    _logger.Info("Dashboard configured with {0} runnable processes.", _state.RunnableProcesses.Count);
+                    var runnableProcessesLog = string.Join(
+                        ", ",
+                        _state.RunnableProcesses.Values.Select(rp => $"{rp.Id} (Type: {rp.Type}, Order: {rp.StartupOrder})")
+                    );
+
+                    _logger.Info(
+                        "Dashboard configured with {0} runnable processes: {1}",
+                        _state.RunnableProcesses.Count, 
+                        runnableProcessesLog
+                    );
 
                     _state.RunStatus = RunStatus.Stopped;
 

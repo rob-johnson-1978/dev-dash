@@ -1,4 +1,4 @@
-﻿using DevDash.Features.Configuration;
+﻿using DevDash.Features.Dashboard;
 using Microsoft.Extensions.Logging;
 
 namespace DevDash;
@@ -9,7 +9,7 @@ public sealed class DevDashConfiguration
 
     public DevDashConfiguration AddCompose(string pathToFile, ComposeType composeType, int checkTimeoutInSeconds = 60)
     {
-        ComposeConfiguration = new ComposeConfiguration(int.MinValue, pathToFile, composeType, checkTimeoutInSeconds);
+        ComposeConfiguration = new ComposeConfiguration(pathToFile, composeType, checkTimeoutInSeconds);
 
         return this;
     }

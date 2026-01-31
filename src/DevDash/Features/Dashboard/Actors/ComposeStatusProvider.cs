@@ -44,6 +44,8 @@ internal class ComposeStatusProvider : UntypedActor, IWithTimers
 
                     if (healthOk)
                     {
+                        Timers.CancelAll();
+
                         Context.Parent.Tell(new ComposeStarted());
 
                         Context.Stop(Self);
@@ -61,7 +63,7 @@ internal class ComposeStatusProvider : UntypedActor, IWithTimers
                 }
             case ComposeStatusCheckTimedOut:
                 {
-                    Timers.Cancel(CheckStatusTimerKey);
+                    Timers.CancelAll();
 
                     Context.Parent.Tell(new ComposeStartFailed());
 
