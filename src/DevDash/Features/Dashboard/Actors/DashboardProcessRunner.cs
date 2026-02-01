@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace DevDash.Features.Dashboard.Actors;
 
@@ -469,17 +470,15 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
             return;
         }
 
-        if (state.Process.HasExited)
-        {
-            state.Process.Dispose();
-            return;
-        }
+        var processId = state.Process.Id;
+        var processHasExited = state.Process.HasExited;
 
         try
         {
-            KillProcessTree(state.Process.Id);
+            // Always attempt to kill descendants even if the tracked process has already exited
+            KillProcessTree(processId, logger);
 
-            if (!state.Process.WaitForExit(2000))
+            if (!processHasExited && !state.Process.WaitForExit(2000))
             {
                 state.Process.Kill(entireProcessTree: true);
                 state.Process.WaitForExit(1000);
@@ -487,7 +486,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         }
         catch (Exception ex)
         {
-            logger.Error(ex, "Error while stopping process with ID {0}", state.Process.Id);
+            logger.Error(ex, "Error while stopping process with ID {0}", processId);
         }
         finally
         {
@@ -495,43 +494,26 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         }
     }
 
-    private static void KillProcessTree(int processId)
+    private static void KillProcessTree(int processId, ILoggingAdapter logger)
     {
-        try
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            var process = Process.GetProcessById(processId);
+            KillProcessTreeWindows(processId, logger);
+            return;
+        }
 
-            // In .NET 5+, Kill() has an optional parameter to kill the entire tree
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit(1000);
-        }
-        catch (ArgumentException)
-        {
-            // Process already exited
-        }
-        catch (PlatformNotSupportedException)
-        {
-            // Fall back to platform-specific approach
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                KillProcessTreeWindowsCmd(processId);
-            }
-            else
-            {
-                KillProcessTreeUnix(processId);
-            }
-        }
+        KillProcessTreeUnix(processId, logger);
     }
 
-    private static void KillProcessTreeWindowsCmd(int processId)
+    private static void KillProcessTreeWindows(int processId, ILoggingAdapter logger)
     {
-        // Use taskkill command to kill process tree
+        // Use taskkill to forcibly terminate the process and its entire tree
         try
         {
             var startInfo = new ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = $"/c taskkill /PID {processId} /T /F",
+                FileName = "taskkill",
+                Arguments = $"/PID {processId} /T /F",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
@@ -539,43 +521,52 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
             };
 
             using var killProcess = Process.Start(startInfo);
-            killProcess?.WaitForExit(1000);
+            killProcess?.WaitForExit(3000);
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback to just killing the main process
+            logger.Error(ex, "taskkill failed for PID {0}", processId);
             try
             {
                 var process = Process.GetProcessById(processId);
-                process.Kill();
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(1000);
             }
             catch (ArgumentException)
             {
                 // Process already exited
+            }
+            catch (Exception fallbackEx)
+            {
+                logger.Error(fallbackEx, "Fallback kill failed for PID {0}", processId);
             }
         }
     }
 
-    private static void KillProcessTreeUnix(int processId)
+    private static void KillProcessTreeUnix(int processId, ILoggingAdapter logger)
     {
-        // On Unix, we can use process groups or pkill
         try
         {
-            // Try to kill the process group
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "/bin/bash",
-                Arguments = $"-c \"kill -TERM -{processId}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            var allPids = CollectProcessTreeUnix(processId, logger);
 
-            using var killProcess = Process.Start(startInfo);
-            killProcess?.WaitForExit(1000);
+            // First attempt a graceful shutdown
+            foreach (var pid in allPids)
+            {
+                TrySendSignal(pid, "-TERM", logger);
+            }
+
+            Thread.Sleep(250);
+
+            // Forcefully kill anything still running
+            foreach (var pid in allPids)
+            {
+                TrySendSignal(pid, "-KILL", logger);
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback to killing just the process
+            logger.Error(ex, "Failed to kill process tree for PID {0}", processId);
+            // Fallback to killing just the tracked process
             try
             {
                 var process = Process.GetProcessById(processId);
@@ -584,6 +575,106 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
             catch (ArgumentException)
             {
                 // Process already exited
+            }
+            catch (Exception fallbackEx)
+            {
+                logger.Error(fallbackEx, "Fallback single kill failed for PID {0}", processId);
+            }
+        }
+    }
+
+    private static IReadOnlyCollection<int> CollectProcessTreeUnix(int rootPid, ILoggingAdapter logger)
+    {
+        var result = new HashSet<int>();
+        var queue = new Queue<int>();
+
+        queue.Enqueue(rootPid);
+
+        while (queue.Count > 0)
+        {
+            var pid = queue.Dequeue();
+
+            if (!result.Add(pid))
+            {
+                continue;
+            }
+
+            foreach (var childPid in GetChildProcessIdsUnix(pid, logger))
+            {
+                queue.Enqueue(childPid);
+            }
+        }
+
+        // Kill deepest children first so parents do not immediately respawn them
+        return result.OrderByDescending(id => id != rootPid).ToArray();
+    }
+
+    private static IReadOnlyCollection<int> GetChildProcessIdsUnix(int pid, ILoggingAdapter logger)
+    {
+        var childPids = new List<int>();
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "/bin/ps",
+                Arguments = $"-o pid= --ppid {pid}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var ps = Process.Start(startInfo);
+            var output = ps?.StandardOutput.ReadToEnd() ?? string.Empty;
+            ps?.WaitForExit(1000);
+
+            foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (int.TryParse(line, out var childPid))
+                {
+                    childPids.Add(childPid);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex, "Failed to get child PIDs for PID {0}", pid);
+        }
+
+        return childPids;
+    }
+
+    private static void TrySendSignal(int pid, string signal, ILoggingAdapter logger)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "/bin/kill",
+                Arguments = $"{signal} {pid}",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            using var kill = Process.Start(startInfo);
+            kill?.WaitForExit(1000);
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex, "Failed to send signal {0} to PID {1}", signal, pid);
+            try
+            {
+                var process = Process.GetProcessById(pid);
+                if (!process.HasExited)
+                {
+                    process.Kill();
+                }
+            }
+            catch (Exception fallbackEx)
+            {
+                logger.Error(fallbackEx, "Fallback kill failed for PID {0}", pid);
             }
         }
     }
