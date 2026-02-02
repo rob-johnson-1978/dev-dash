@@ -3,8 +3,6 @@ Simple dev dashboard
 
 -----
 # Backlog
-- [ ] Fix issue where only one url is detected for some apps
-
 - [ ] Why is the main page auto-scrolling??
 
 - [ ] Get rid of errors on restart or shutdown
