@@ -1,5 +1,19 @@
 # dev-dash
-Simple dev dashboard
+An unambitious developer dashboard for local development environments.
+
+And yes, the logo looks like it's farting. Soz.
+
+## Beta
+
+This is very much in beta. It works for me, but your mileage may vary. 
+Use at your own risk. It's not finished, and may have bugs. In fact, 
+it almost certainly does.
+
+It doesn't have instructions either, but if you want to look at the code,
+you can probably figure it out. PRs not welcome yet, but feel free to
+open issues. Actually, don't. Just stare at the logo some more.
+
+Actually, it's not even finished. See below for the backlog of things to do...
 
 -----
 # Backlog
