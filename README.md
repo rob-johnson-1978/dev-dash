@@ -3,7 +3,15 @@ Simple dev dashboard
 
 -----
 # Backlog
-- [ ] Get node apps to stop listening properly when process exits!!
+- [ ] Fix issue where only one url is detected for some apps
+
+- [ ] Why is the main page auto-scrolling??
+
+- [ ] Get rid of errors on restart or shutdown
+
+- [ ] Also, when restarting, compose takes ages to become healthy, but apps do start??
+
+- [ ] Colours in node/py/go app output?
 
 - [ ] Get rid of code setup, use appsettings.json or YAML
 

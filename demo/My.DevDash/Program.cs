@@ -62,6 +62,22 @@ builder.UseDevDash(configuration =>
             PathToFolder = "../my-node-app-e2e",
             Instructions = "npm test",
             StartDetectionRegex = "> node --test"
+        })
+        .AddProcess(new ProcessConfiguration
+        {
+            StartupOrder = 1,
+            Id = "my-python-app",
+            PathToFolder = "../my-python-app",
+            Instructions = "pip install -r requirements.txt && python main.py",
+            UrlDetections = [new(@"Running on (https?://\S+)", IsPortOnly: false, IsHttpsWhenPortOnly: false)]
+        })
+        .AddProcess(new ProcessConfiguration
+        {
+            StartupOrder = 2,
+            Id = "my-python-app-e2e",
+            PathToFolder = "../my-python-app-e2e",
+            Instructions = "pip install -r requirements.txt && python -m pytest",
+            StartDetectionRegex = "test session starts"
         });
 });
 

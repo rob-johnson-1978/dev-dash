@@ -365,9 +365,11 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 return;
             }
 
+            var cleanLine = StripAnsiForDetection(e.Data);
+
             if (state.DetectRunnableProcessStartedUrlViaStdOut != null)
             {
-                var url = state.DetectRunnableProcessStartedUrlViaStdOut(e.Data);
+                var url = state.DetectRunnableProcessStartedUrlViaStdOut(cleanLine);
 
                 if (url != null && !string.IsNullOrWhiteSpace(url))
                 {
@@ -376,7 +378,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
             }
             else if (state.DetectRunnableProcessStartedViaStdOut != null)
             {
-                var started = state.DetectRunnableProcessStartedViaStdOut(e.Data);
+                var started = state.DetectRunnableProcessStartedViaStdOut(cleanLine);
 
                 if (started)
                 {
@@ -400,6 +402,27 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
             if (e.Data == null)
             {
                 return;
+            }
+
+            var cleanLine = StripAnsiForDetection(e.Data);
+
+            if (state.DetectRunnableProcessStartedUrlViaStdOut != null)
+            {
+                var url = state.DetectRunnableProcessStartedUrlViaStdOut(cleanLine);
+
+                if (url != null && !string.IsNullOrWhiteSpace(url))
+                {
+                    self.Tell(new ProcessUrlDetected(url));
+                }
+            }
+            else if (state.DetectRunnableProcessStartedViaStdOut != null)
+            {
+                var started = state.DetectRunnableProcessStartedViaStdOut(cleanLine);
+
+                if (started)
+                {
+                    SetAsRunnableProcessStarted(system, parent, state);
+                }
             }
 
             var line = BuildHtmlFromOutput(e.Data);
@@ -744,6 +767,11 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
     private static Regex GetPreDefinedRegex(string type) => throw new NotImplementedException("TODO");
 
     private static ImmutableArray<UrlDetectionWithRegex> GetPreDefinedUrlDetections(string type) => throw new NotImplementedException("TODO");
+
+    private static string StripAnsiForDetection(string line) =>
+        AnsiCodePattern()
+            .Replace(line, string.Empty)
+            .TrimStart();
 
     private static Func<string, string?> DetectUrlByRegex(ImmutableArray<UrlDetectionWithRegex> urlDetections) => line =>
     {
