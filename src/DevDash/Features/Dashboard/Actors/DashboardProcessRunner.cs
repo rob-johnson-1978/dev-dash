@@ -1,6 +1,7 @@
 ﻿using Akka.Actor;
 using Akka.Event;
 using DevDash.Infastructure;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -160,9 +161,13 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     _state.Urls.Add(lowerUrl);
 
-                    if (_state.DetectRunnableProcessStartedUrlViaStdOut != null)
+                    if (_state.DetectRunnableProcessStartedUrlViaStdOut != null && _state.RunStatus != RunStatus.Started)
                     {
                         SetAsRunnableProcessStarted(Context.System, Context.Parent, _state);
+                    }
+                    else
+                    {
+                        UpdateRunStatusAndTellParent(_state.RunStatus, Context.Parent, _state);
                     }
 
                     break;
@@ -369,11 +374,12 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
             if (state.DetectRunnableProcessStartedUrlViaStdOut != null)
             {
-                var url = state.DetectRunnableProcessStartedUrlViaStdOut(cleanLine);
-
-                if (url != null && !string.IsNullOrWhiteSpace(url))
+                foreach (var url in state.DetectRunnableProcessStartedUrlViaStdOut(cleanLine))
                 {
-                    self.Tell(new ProcessUrlDetected(url));
+                    if (!string.IsNullOrWhiteSpace(url))
+                    {
+                        self.Tell(new ProcessUrlDetected(url));
+                    }
                 }
             }
             else if (state.DetectRunnableProcessStartedViaStdOut != null)
@@ -408,11 +414,12 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
             if (state.DetectRunnableProcessStartedUrlViaStdOut != null)
             {
-                var url = state.DetectRunnableProcessStartedUrlViaStdOut(cleanLine);
-
-                if (url != null && !string.IsNullOrWhiteSpace(url))
+                foreach (var url in state.DetectRunnableProcessStartedUrlViaStdOut(cleanLine))
                 {
-                    self.Tell(new ProcessUrlDetected(url));
+                    if (!string.IsNullOrWhiteSpace(url))
+                    {
+                        self.Tell(new ProcessUrlDetected(url));
+                    }
                 }
             }
             else if (state.DetectRunnableProcessStartedViaStdOut != null)
@@ -773,35 +780,40 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
             .Replace(line, string.Empty)
             .TrimStart();
 
-    private static Func<string, string?> DetectUrlByRegex(ImmutableArray<UrlDetectionWithRegex> urlDetections) => line =>
+    private static Func<string, IEnumerable<string>> DetectUrlByRegex(ImmutableArray<UrlDetectionWithRegex> urlDetections)
     {
-        foreach (var detection in urlDetections)
+        return line => EnumerateMatches(line, urlDetections);
+
+        static IEnumerable<string> EnumerateMatches(string line, ImmutableArray<UrlDetectionWithRegex> detections)
         {
-            var match = detection.Regex.Match(line);
-
-            if (!match.Success)
+            foreach (var detection in detections)
             {
-                continue;
+                foreach (Match match in detection.Regex.Matches(line))
+                {
+                    if (!match.Success)
+                    {
+                        continue;
+                    }
+
+                    var matchedValue = match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
+
+                    if (string.IsNullOrWhiteSpace(matchedValue))
+                    {
+                        continue;
+                    }
+
+                    if (detection.IsPortOnly && int.TryParse(matchedValue, out var port))
+                    {
+                        var scheme = detection.IsHttpsWhenPortOnly ? "https" : "http";
+                        yield return $"{scheme}://localhost:{port}";
+                        continue;
+                    }
+
+                    yield return matchedValue;
+                }
             }
-
-            var matchedValue = match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
-
-            if (string.IsNullOrWhiteSpace(matchedValue))
-            {
-                continue;
-            }
-
-            if (detection.IsPortOnly && int.TryParse(matchedValue, out var port))
-            {
-                var scheme = detection.IsHttpsWhenPortOnly ? "https" : "http";
-                return $"{scheme}://localhost:{port}";
-            }
-
-            return matchedValue;
         }
-
-        return null;
-    };
+    }
 
     private static Func<string, bool> DetectStartByRegex(Regex regex) => regex.IsMatch;
 
