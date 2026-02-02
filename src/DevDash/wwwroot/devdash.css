@@ -57,6 +57,7 @@ main {
         padding: 1rem;
         overflow-y: auto;
         min-height: 0;
+        overflow-anchor: none;
     }
 
 a, a:visited, .button {

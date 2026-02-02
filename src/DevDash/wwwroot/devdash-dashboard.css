@@ -9,6 +9,9 @@
 }
 
 .runnable-process {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     width: calc(33.333% - 4rem);
     margin: 0 3rem 3rem 0;
     background: #222;
@@ -16,12 +19,18 @@
     box-shadow: 0 0 3px 3px rgba(255,255,255,0.2);
 }
 
+    .runnable-process.modal-dialog {
+        margin: 0;
+        overflow: hidden;
+    }
+
 .runnable-process-header {
     background: #333;
     padding: 1rem 2rem;
     font-weight: bold;
     display: flex;
     flex-direction: row;
+    align-items: center;
     margin-bottom: 1rem;
     border-radius: 8px 8px 0 0;
 }
@@ -31,8 +40,13 @@
         font-size: 2.3rem;
     }
 
+
 .runnable-process-header-buttons {
     text-align: right;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    white-space: nowrap;
 }
 
     .runnable-process-header-buttons > span {
@@ -60,7 +74,10 @@
         margin-left: 1rem;
     }
 
+
 .runnable-process-console-output {
+    width: 100%;
+    box-sizing: border-box;
     padding: 1rem;
     font-family: monospace;
     white-space: pre;
@@ -74,6 +91,17 @@
 .runnable-process.modal-dialog .runnable-process-console-output {
     font-size: 14px !important;
     height: calc(100% - 3.5rem);
+}
+
+.runnable-process-console-output pre,
+.runnable-process-console-output code {
+    display: block;
+    margin: 0;
+    padding: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .log-line {

@@ -3,11 +3,7 @@ Simple dev dashboard
 
 -----
 # Backlog
-- [ ] Why is the main page auto-scrolling??
-
-- [ ] Get rid of errors on restart or shutdown
-
-- [ ] Also, when restarting, compose takes ages to become healthy, but apps do start??
+- [ ] When restarting, compose takes ages to become healthy, but apps do start??
 
 - [ ] Colours in node/py/go app output?
 
