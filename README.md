@@ -3,15 +3,15 @@ Simple dev dashboard
 
 -----
 # Backlog
-- [ ] When restarting, compose takes ages to become healthy, but apps do start??
+- [ ] Get rid of code setup, use appsettings.json or YAML - start with single-file .NET 10 thing
+
+- [ ] Installable and/or CLI Tool version
 
 - [ ] Colours in node/py/go app output?
 
-- [ ] Get rid of code setup, use appsettings.json or YAML
-
-- [ ] Installable and/or CLI Tool version
- 
 - [ ] Standard start / url detection regexes
+
+- [ ] Get rid of dead letters on restart (I think it's ProcessExited)
 
 - [ ] Rework "RunStatus" to use current actor behaviour to report on status, 
 rather separate status state in both supervisor and runner. Still use a timer, 
