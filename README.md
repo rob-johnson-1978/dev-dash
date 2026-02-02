@@ -1,7 +1,14 @@
 # dev-dash
-An unambitious developer dashboard for local development environments.
 
-And yes, the logo looks like it's farting. Soz.
+<img src="./src/DevDash/wwwroot/favicon/apple-touch-icon.png" style="width: 100px;" />
+
+---
+
+## An unambitious developer dashboard for local development environments.
+
+_And yes, the logo looks like it's farting. Soz._
+
+---
 
 ## Beta
 
