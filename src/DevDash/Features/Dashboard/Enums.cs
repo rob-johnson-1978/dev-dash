@@ -1,4 +1,6 @@
-﻿namespace DevDash.Features.Dashboard;
+﻿using System.Text.Json.Serialization;
+
+namespace DevDash.Features.Dashboard;
 
 internal enum ProcessType
 {
@@ -6,6 +8,7 @@ internal enum ProcessType
     Generic
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<RunStatus>))]
 internal enum RunStatus
 {
     NeverStarted,
