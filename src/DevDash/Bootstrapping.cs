@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Logging;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 
@@ -29,7 +30,14 @@ public static class Bootstrapping
     {
         public WebApplicationBuilder UseDevDash(string[] args)
         {
-            /* devdash - port configuration and static web assets */
+            /* logging */
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+            builder.Logging.SetMinimumLevel(LogLevel.Warning);
+            builder.Logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Information);
+            builder.Logging.AddFilter("DevDash", LogLevel.Debug);
+
+            /* port configuration and static web assets */
 
             var port = 5285;
             var filePath = Path.GetRelativePath(Environment.CurrentDirectory, "dev-dash.yaml");
@@ -54,9 +62,8 @@ public static class Bootstrapping
             builder.Environment.ContentRootPath = contentRoot;
             builder.Environment.WebRootPath = Path.Combine(contentRoot, "wwwroot");
 
-            /* devdash */
-
-            Console.WriteLine();
+            /* devdash - configuration */
+            Console.WriteLine("--------------------------------------------------");
             Console.WriteLine($"Loading DevDash configuration from: {filePath}");
             Console.WriteLine("--------------------------------------------------");
             Console.WriteLine();
