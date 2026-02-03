@@ -1,14 +1,11 @@
 ﻿using Akka.Actor;
 using Akka.Event;
 using DevDash;
-using DevDash.Infastructure;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 
 namespace DevDash.Features.Dashboard.Actors;
 
@@ -614,7 +611,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         }
     }
 
-    private static IReadOnlyCollection<int> CollectProcessTreeUnix(int rootPid, ILoggingAdapter logger)
+    private static int[] CollectProcessTreeUnix(int rootPid, ILoggingAdapter logger)
     {
         var result = new HashSet<int>();
         var queue = new Queue<int>();
@@ -637,12 +634,13 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         }
 
         // Kill deepest children first so parents do not immediately respawn them
-        return result.OrderByDescending(id => id != rootPid).ToArray();
+        return [.. result.OrderByDescending(id => id != rootPid)];
     }
 
-    private static IReadOnlyCollection<int> GetChildProcessIdsUnix(int pid, ILoggingAdapter logger)
+    private static int[] GetChildProcessIdsUnix(int pid, ILoggingAdapter logger)
     {
         var childPids = new List<int>();
+       
         try
         {
             var startInfo = new ProcessStartInfo
@@ -672,7 +670,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
             logger.Error(ex, "Failed to get child PIDs for PID {0}", pid);
         }
 
-        return childPids;
+        return [.. childPids];
     }
 
     private static void TrySendSignal(int pid, string signal, ILoggingAdapter logger)

@@ -13,7 +13,7 @@ internal class DashboardEventStreamSubscriber(ChannelWriter<SseItem<string>> cha
     {
         switch (message)
         {
-            case IDashboardEventRaised evt:
+            case DashboardEventRaised evt:
                 {
                     var sseItem = new SseItem<string>(
                         data: evt.Json,

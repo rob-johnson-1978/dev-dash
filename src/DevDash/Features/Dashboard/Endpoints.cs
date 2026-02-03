@@ -28,7 +28,7 @@ internal static class Endpoints
         var props = Props.Create(() => new DashboardEventStreamSubscriber(channel.Writer));
         var subscriber = actorSystem.ActorOf(props);
 
-        actorSystem.EventStream.Subscribe(subscriber, typeof(IDashboardEventRaised));
+        actorSystem.EventStream.Subscribe(subscriber, typeof(DashboardEventRaised));
 
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken,
@@ -104,7 +104,7 @@ internal static class Endpoints
         }
         finally
         {
-            actorSystem.EventStream.Unsubscribe(subscriber, typeof(IDashboardEventRaised));
+            actorSystem.EventStream.Unsubscribe(subscriber, typeof(DashboardEventRaised));
             actorSystem.Stop(subscriber);
             channel.Writer.TryComplete();
         }

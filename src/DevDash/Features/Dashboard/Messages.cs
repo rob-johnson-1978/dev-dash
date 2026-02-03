@@ -1,6 +1,7 @@
-﻿using DevDash;
-using DevDash.Infastructure;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace DevDash.Features.Dashboard;
 
@@ -29,7 +30,7 @@ internal interface ICommmandRunnableProcessesToChangeState
     string Id { get; }
 }
 
-internal sealed record StartRunnableProcess(string Id): ICommmandRunnableProcessesToChangeState;
+internal sealed record StartRunnableProcess(string Id) : ICommmandRunnableProcessesToChangeState;
 
 internal sealed record StopRunnableProcess(string Id) : ICommmandRunnableProcessesToChangeState;
 
@@ -67,43 +68,61 @@ internal sealed record ComposeStarted;
 
 internal sealed record ComposeStartFailed;
 
-/* dashboard events */
+/* dashboard events - wrapper event */
 
-internal interface IDashboardEventRaised
+internal sealed record DashboardEventRaised(string Json, string Type)
 {
-    string Json { get; }
-    string Type { get; }
-}
-
-internal static class DashboardEventRaised
-{
-    public static DashboardEventRaised<T> Create<T>(T data)
-        where T : class => new(data);
-}
-
-
-internal sealed record DashboardEventRaised<TEvent> : IDashboardEventRaised
-    where TEvent : class
-{
-    public DashboardEventRaised(TEvent Body)
+    internal static DashboardEventRaised Create<TEvent>(TEvent from)
+        where TEvent : class
     {
-        Json = Body.Serialize();
-        Type = typeof(TEvent).Name;
+        JsonSerializerContext context = from switch
+        {
+            DashboardStatusPublished => DashboardStatusPublishedJsonContext.Default,
+            RunnableProcessesStarting => RunnableProcessesStartingJsonContext.Default,
+            RunnableProcessStatusPublished => RunnableProcessStatusPublishedJsonContext.Default,
+            MessageAreaMessagePublished => MessageAreaMessagePublishedJsonContext.Default,
+            ProcessOutputLineEmitted => ProcessOutputLineEmittedJsonContext.Default,
+            ProcessErrorOutputLineEmitted => ProcessErrorOutputLineEmittedJsonContext.Default,
+            _ => throw new NotSupportedException($"Serialization context for type {typeof(TEvent).Name} is not defined.")
+        };
+
+        var json = JsonSerializer.Serialize(from, typeof(TEvent), context);
+
+        return new DashboardEventRaised(json, typeof(TEvent).Name);
     }
-
-    public string Json { get; }
-
-    public string Type { get; }
 }
+
+[JsonSerializable(typeof(DashboardEventRaised))]
+internal partial class DashboardEventRaisedJsonContext : JsonSerializerContext { }
+
+/* dashboard events - specific events */
 
 internal sealed record DashboardStatusPublished(RunStatus Status);
 
+[JsonSerializable(typeof(DashboardStatusPublished))]
+internal partial class DashboardStatusPublishedJsonContext : JsonSerializerContext { }
+
 internal sealed record RunnableProcessesStarting;
+
+[JsonSerializable(typeof(RunnableProcessesStarting))]
+internal partial class RunnableProcessesStartingJsonContext : JsonSerializerContext { }
 
 internal sealed record RunnableProcessStatusPublished(string ProcessId, RunStatus Status, ImmutableArray<string> Urls);
 
+[JsonSerializable(typeof(RunnableProcessStatusPublished))]
+internal partial class RunnableProcessStatusPublishedJsonContext : JsonSerializerContext { }
+
 internal sealed record MessageAreaMessagePublished(string Message, string Status = "default");
+
+[JsonSerializable(typeof(MessageAreaMessagePublished))]
+internal partial class MessageAreaMessagePublishedJsonContext : JsonSerializerContext { }
 
 internal sealed record ProcessOutputLineEmitted(string Id, string Line);
 
+[JsonSerializable(typeof(ProcessOutputLineEmitted))]
+internal partial class ProcessOutputLineEmittedJsonContext : JsonSerializerContext { }
+
 internal sealed record ProcessErrorOutputLineEmitted(string Id, string Line);
+
+[JsonSerializable(typeof(ProcessErrorOutputLineEmitted))]
+internal partial class ProcessErrorOutputLineEmittedJsonContext : JsonSerializerContext { }
