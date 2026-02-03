@@ -68,6 +68,32 @@ internal sealed record ComposeStarted;
 
 internal sealed record ComposeStartFailed;
 
+/* dashboard events - context cache */
+internal static class DashboardEventRaisedJsonContexts
+{
+    private static readonly ImmutableDictionary<Type, JsonSerializerContext> _contexts;
+
+    static DashboardEventRaisedJsonContexts()
+    {
+        _contexts = new Dictionary<Type, JsonSerializerContext>
+        {
+            { typeof(DashboardStatusPublished), new DashboardStatusPublishedJsonContext(new JsonSerializerOptions()) },
+            { typeof(RunnableProcessesStarting), new RunnableProcessesStartingJsonContext(new JsonSerializerOptions()) },
+            { typeof(RunnableProcessStatusPublished), new RunnableProcessStatusPublishedJsonContext(new JsonSerializerOptions()) },
+            { typeof(MessageAreaMessagePublished), new MessageAreaMessagePublishedJsonContext(new JsonSerializerOptions()) },
+            { typeof(ProcessOutputLineEmitted), new ProcessOutputLineEmittedJsonContext(new JsonSerializerOptions()) },
+            { typeof(ProcessErrorOutputLineEmitted), new ProcessErrorOutputLineEmittedJsonContext(new JsonSerializerOptions()) },
+        }
+        .ToImmutableDictionary();
+    }
+
+    internal static JsonSerializerContext GetContext<TEvent>()
+        where TEvent : class => 
+        _contexts.TryGetValue(typeof(TEvent), out var context) 
+            ? context 
+            : throw new InvalidOperationException($"Type {typeof(TEvent)} is not registered in the context dictionary");
+}
+
 /* dashboard events - wrapper event */
 
 internal sealed record DashboardEventRaised(string Json, string Type)
@@ -75,16 +101,7 @@ internal sealed record DashboardEventRaised(string Json, string Type)
     internal static DashboardEventRaised Create<TEvent>(TEvent from)
         where TEvent : class
     {
-        JsonSerializerContext context = from switch
-        {
-            DashboardStatusPublished => DashboardStatusPublishedJsonContext.Default,
-            RunnableProcessesStarting => RunnableProcessesStartingJsonContext.Default,
-            RunnableProcessStatusPublished => RunnableProcessStatusPublishedJsonContext.Default,
-            MessageAreaMessagePublished => MessageAreaMessagePublishedJsonContext.Default,
-            ProcessOutputLineEmitted => ProcessOutputLineEmittedJsonContext.Default,
-            ProcessErrorOutputLineEmitted => ProcessErrorOutputLineEmittedJsonContext.Default,
-            _ => throw new NotSupportedException($"Serialization context for type {typeof(TEvent).Name} is not defined.")
-        };
+        var context = DashboardEventRaisedJsonContexts.GetContext<TEvent>();
 
         var json = JsonSerializer.Serialize(from, typeof(TEvent), context);
 

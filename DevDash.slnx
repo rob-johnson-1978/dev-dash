@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/demo/my-dev-dash/">
-    <File Path="demo/my-dev-dash/dev-dash.yaml" />
     <File Path="demo/my-dev-dash/main.cs" />
+    <File Path="demo/my-dev-dash/my-demo-dev-dash.yaml" />
   </Folder>
   <Folder Name="/sln/">
     <File Path=".gitignore" />

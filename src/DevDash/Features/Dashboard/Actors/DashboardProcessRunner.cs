@@ -70,7 +70,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                 {
                     _state.ProcessId = Constants.DockerComposeProcessId;
 
-                    _state.FullComposePath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), command.ComposeFilePath));
+                    _state.FullComposePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, command.ComposeFilePath));
 
                     _state.WorkingDirectory = Path.GetDirectoryName(_state.FullComposePath)
                         ?? throw new InvalidOperationException("Could not determine working directory");

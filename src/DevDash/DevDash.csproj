@@ -5,6 +5,7 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+		<GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -14,7 +15,12 @@
 	<ItemGroup>
 		<PackageReference Include="Akka" Version="1.5.58" />
 		<PackageReference Include="Akka.Hosting" Version="1.5.58" />
-		<PackageReference Include="YamlDotNet" Version="16.3.0" />		
+		<PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.2" />
+		<PackageReference Include="YamlDotNet" Version="16.3.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="wwwroot\**\*" />
 	</ItemGroup>
 
 </Project>

@@ -4,7 +4,10 @@ using DevDash;
 using DevDash.Features.Dashboard;
 using DevDash.Features.Dashboard.Actors;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 
 namespace DevDash;
@@ -26,11 +29,34 @@ public static class Bootstrapping
     {
         public WebApplicationBuilder UseDevDash(string[] args)
         {
+            /* devdash - port configuration and static web assets */
+
+            var port = 5285;
+            var filePath = Path.GetRelativePath(Environment.CurrentDirectory, "dev-dash.yaml");
+
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (args[i] == "--ddsh-port" && i + 1 < args.Length && int.TryParse(args[i + 1], out var parsedPort))
+                {
+                    port = parsedPort;                    
+                }
+
+                if (args[i] == "--ddsh-file" && i + 1 < args.Length)
+                {
+                    filePath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, args[i + 1]));
+                }
+            }
+
+            builder.WebHost.UseUrls($"http://localhost:{port}");
+
+            var assembly = typeof(Bootstrapping).Assembly;
+            var contentRoot = Path.GetDirectoryName(assembly.Location)!;
+            builder.Environment.ContentRootPath = contentRoot;
+            builder.Environment.WebRootPath = Path.Combine(contentRoot, "wwwroot");
+
             /* devdash */
 
             Console.WriteLine();
-
-            var filePath = Path.Combine(Environment.CurrentDirectory, "dev-dash.yaml");
             Console.WriteLine($"Loading DevDash configuration from: {filePath}");
             Console.WriteLine("--------------------------------------------------");
             Console.WriteLine();
@@ -41,19 +67,20 @@ public static class Bootstrapping
             Console.WriteLine();
 
             var deserializer = new DeserializerBuilder()
-                .IncludeNonPublicProperties()                
+                .IncludeNonPublicProperties()
                 .Build();
+
             try
             {
                 var configuration = deserializer.Deserialize<Configuration>(yaml);
                 builder.Services.AddSingleton(configuration);
             }
-            catch (YamlDotNet.Core.YamlException ex)
+            catch (YamlException ex)
             {
                 Console.WriteLine($"{ex.Message}");
                 Console.WriteLine($"Inner exception: {ex.InnerException?.Message ?? "null"}");
                 throw;
-            }            
+            }
 
             /* razor */
 
@@ -101,10 +128,18 @@ public static class Bootstrapping
     {
         public WebApplication UseDevDash()
         {
-            /* razor */
+            /* razor - serve embedded static files */
 
-            app.UseStaticFiles();
-            app.MapRazorPages().WithStaticAssets();
+            var assembly = typeof(Bootstrapping).Assembly;
+            var embeddedFileProvider = new ManifestEmbeddedFileProvider(assembly, "wwwroot");
+
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = embeddedFileProvider,
+                RequestPath = "/_content/DevDash"
+            });
+
+            app.MapRazorPages();
 
             /* devdash */
 
