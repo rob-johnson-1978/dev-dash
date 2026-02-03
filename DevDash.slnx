@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/demo/my-dev-dash/">
+    <File Path="demo/my-dev-dash/dev-dash.yaml" />
+    <File Path="demo/my-dev-dash/main.cs" />
+  </Folder>
   <Folder Name="/sln/">
     <File Path=".gitignore" />
     <File Path="README.md" />

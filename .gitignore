@@ -423,3 +423,6 @@ CLAUDE.md
 
 # Go
 *.exe
+
+# Single file.NET
+**/my-dev-dash/app/**

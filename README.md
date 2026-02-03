@@ -46,6 +46,6 @@ or something into dll)
 
 - [ ] Tests (Playwright)
 
-- [ ] Packaging
+- [ ] Packaging (ensure to include YAML.NET license)
 -----
 

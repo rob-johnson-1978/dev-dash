@@ -1,5 +1,6 @@
 ﻿using Akka.Actor;
 using Akka.Event;
+using DevDash;
 using DevDash.Infastructure;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -31,7 +32,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         {
             case RunGenericProcess command:
                 {
-                    _state.ProcessId = command.Configuration.Id;
+                    _state.ProcessId = command.Id;
                     _state.WorkingDirectory = command.Configuration.PathToFolder;
                     _state.Instructions = command.Configuration.Instructions;
 
@@ -54,7 +55,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                                 [.. command
                                     .Configuration
                                     .UrlDetections
-                                    .Select(d => new UrlDetectionWithRegex(new Regex(d.RegexPattern), d.IsPortOnly, d.IsHttpsWhenPortOnly))
+                                    .Select(d => new UrlDetectionWithRegex(new Regex(d.Pattern), d.PortOnly, d.HttpsWhenPortOnly))
                                 ]
                             );
                     }
@@ -802,9 +803,9 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
                         continue;
                     }
 
-                    if (detection.IsPortOnly && int.TryParse(matchedValue, out var port))
+                    if (detection.PortOnly && int.TryParse(matchedValue, out var port))
                     {
-                        var scheme = detection.IsHttpsWhenPortOnly ? "https" : "http";
+                        var scheme = detection.HttpsWhenPortOnly ? "https" : "http";
                         yield return $"{scheme}://localhost:{port}";
                         continue;
                     }

@@ -1,4 +1,5 @@
-﻿using DevDash.Infastructure;
+﻿using DevDash;
+using DevDash.Infastructure;
 using System.Collections.Immutable;
 
 namespace DevDash.Features.Dashboard;
@@ -45,7 +46,7 @@ internal sealed record StopDashboard;
 internal sealed record RestartDashboard;
 
 /* dashboard - generic process */
-internal sealed record RunGenericProcess(ProcessConfiguration Configuration);
+internal sealed record RunGenericProcess(string Id, ProcessConfiguration Configuration);
 
 /* dashboard - compose */
 

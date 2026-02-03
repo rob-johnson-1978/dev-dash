@@ -6,7 +6,7 @@ using System.Collections.Immutable;
 
 namespace DevDash.Features.Dashboard.Actors;
 
-internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : UntypedActor, IWithUnboundedStash, IWithTimers
+internal sealed class DashboardSupervisor(Configuration configuration) : UntypedActor, IWithUnboundedStash, IWithTimers
 {
     private const string UpdateTimerKey = "publish-runnable-process-timer-key";
     private readonly ILoggingAdapter _logger = Context.GetLogger();
@@ -19,16 +19,6 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
     protected override void PostStop()
     {
         Timers.CancelAll();
-
-        if (configuration.OnShutdown is null)
-        {
-            return;
-        }
-
-        RunTask(async () =>
-        {
-            await configuration.OnShutdown();
-        });
     }
 
     protected override void OnReceive(object message)
@@ -37,11 +27,6 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
         {
             case ConfigureDashboard:
                 {
-                    if (configuration.BeforeStart != null)
-                    {
-                        RunTask(async () => await configuration.BeforeStart());
-                    }
-
                     Timers.StartPeriodicTimer(
                             UpdateTimerKey,
                             new PublishDashboardUpdate(),
@@ -49,7 +34,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                             TimeSpan.FromMilliseconds(500)
                         );
 
-                    if (configuration.ComposeConfiguration != null)
+                    if (configuration.Compose != null)
                     {
                         _state.RunnableProcesses.Add(
                             Constants.DockerComposeProcessId,
@@ -64,7 +49,7 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                         );
                     }
 
-                    foreach(var process in configuration.GenericProcesses)
+                    foreach(var process in configuration.Processes)
                     {
                         _state.RunnableProcesses.Add(
                             process.Key,
@@ -262,9 +247,9 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                                         .ActorRef?
                                         .Tell(
                                             new RunCompose(
-                                                configuration.ComposeConfiguration!.FilePath,
-                                                configuration.ComposeConfiguration!.ComposeType,
-                                                configuration.ComposeConfiguration!.CheckTimeoutInSeconds
+                                                configuration.Compose!.Path,
+                                                configuration.Compose!.Type,
+                                                configuration.Compose!.CheckTimeoutSeconds
                                             )
                                         );
 
@@ -276,7 +261,8 @@ internal sealed class DashboardSupervisor(DevDashConfiguration configuration) : 
                                         .ActorRef?
                                         .Tell(
                                             new RunGenericProcess(
-                                                configuration.GenericProcesses[proc.Id]
+                                                proc.Id,
+                                                configuration.Processes[proc.Id]
                                             )
                                         );
                                     break;

@@ -1,25 +1,59 @@
 ﻿using Akka.Actor;
 using Akka.Hosting;
+using DevDash;
 using DevDash.Features.Dashboard;
 using DevDash.Features.Dashboard.Actors;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using YamlDotNet.Serialization;
 
 namespace DevDash;
 
 public static class Bootstrapping
 {
+    public static void RunDevDash(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+        builder.UseDevDash(args);
+
+        var app = builder.Build();
+        app.UseDevDash();
+
+        app.Run();
+    }
+
     extension(WebApplicationBuilder builder)
     {
-        public WebApplicationBuilder UseDevDash(Action<DevDashConfiguration> configure)
+        public WebApplicationBuilder UseDevDash(string[] args)
         {
             /* devdash */
 
-            var configuration = new DevDashConfiguration();
-            configure(configuration);
+            Console.WriteLine();
 
-            builder.Services.AddSingleton(configuration);
+            var filePath = Path.Combine(Environment.CurrentDirectory, "dev-dash.yaml");
+            Console.WriteLine($"Loading DevDash configuration from: {filePath}");
+            Console.WriteLine("--------------------------------------------------");
+            Console.WriteLine();
+
+            var yaml = File.ReadAllText(filePath);
+            Console.WriteLine(yaml);
+            Console.WriteLine("--------------------------------------------------");
+            Console.WriteLine();
+
+            var deserializer = new DeserializerBuilder()
+                .IncludeNonPublicProperties()                
+                .Build();
+            try
+            {
+                var configuration = deserializer.Deserialize<Configuration>(yaml);
+                builder.Services.AddSingleton(configuration);
+            }
+            catch (YamlDotNet.Core.YamlException ex)
+            {
+                Console.WriteLine($"{ex.Message}");
+                Console.WriteLine($"Inner exception: {ex.InnerException?.Message ?? "null"}");
+                throw;
+            }            
 
             /* razor */
 
@@ -30,28 +64,19 @@ public static class Bootstrapping
                 {
                     options.Conventions.AddAreaPageRoute("DevDash", "/Dashboard", "/");
                     options.Conventions.AddAreaPageRoute("DevDash", "/OtherPage", "/other-page");
-                });            
+                });
 
             /* akka */
 
             builder.Services.AddAkka("DevDashSystem", async (akkaBuilder, serviceProvider) =>
             {
-                var devDashConfig = serviceProvider.GetRequiredService<DevDashConfiguration>();
+                var devDashConfig = serviceProvider.GetRequiredService<Configuration>();
 
                 akkaBuilder.ConfigureLoggers(loggerConfig =>
                 {
                     loggerConfig.AddLoggerFactory();
 
-                    loggerConfig.LogLevel = devDashConfig.LogLevel switch
-                    {
-                        LogLevel.Trace => Akka.Event.LogLevel.DebugLevel,
-                        LogLevel.Debug => Akka.Event.LogLevel.DebugLevel,
-                        LogLevel.Information => Akka.Event.LogLevel.InfoLevel,
-                        LogLevel.Warning => Akka.Event.LogLevel.WarningLevel,
-                        LogLevel.Error => Akka.Event.LogLevel.ErrorLevel,
-                        LogLevel.Critical => Akka.Event.LogLevel.ErrorLevel,
-                        _ => Akka.Event.LogLevel.InfoLevel,
-                    };
+                    loggerConfig.LogLevel = Akka.Event.LogLevel.DebugLevel;
                 });
 
                 akkaBuilder.WithActors((system, registry, _) =>
