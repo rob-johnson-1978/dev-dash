@@ -9,6 +9,58 @@ processes:
     path_to_folder: ../My.ConsoleApp
     instructions: dotnet run --no-build --no-restore
     start_detection_regex: "Application started"
-    pre_defined_start_detection:
+  web-api-1:
+    startup_order: 1
+    path_to_folder: ../My.WebApi
+    instructions: dotnet run --no-restore --no-build --launch-profile http1
     url_detections:
-    pre_defined_url_detections:
+      - pattern: "Now listening on: (https?://\\S+)"
+        port_only: false
+        https_when_port_only: false
+  web-api-2:
+    startup_order: 2
+    path_to_folder: ../My.WebApi
+    instructions: dotnet run --no-restore --no-build --launch-profile http2
+    url_detections:
+      - pattern: "Now listening on: (https?://\\S+)"
+        port_only: false
+        https_when_port_only: false
+  my-go-app:
+    startup_order: 1
+    path_to_folder: ../my-go-app
+    instructions: go run .
+    url_detections:
+      - pattern: "Server starting on port (\\d+)"
+        port_only: true
+        https_when_port_only: false
+  my-go-app-e2e:
+    startup_order: 2
+    path_to_folder: ../my-go-app-e2e
+    instructions: go test -v ./...
+    start_detection_regex: "=== RUN"
+  my-node-app:
+    startup_order: 1
+    path_to_folder: ../my-node-app
+    instructions: npm i && npm start
+    url_detections:
+      - pattern: "Server starting on port (\\d+)"
+        port_only: true
+        https_when_port_only: false
+  my-node-app-e2e:
+    startup_order: 2
+    path_to_folder: ../my-node-app-e2e
+    instructions: npm test
+    start_detection_regex: "> node --test"
+  my-python-app:
+    startup_order: 1
+    path_to_folder: ../my-python-app
+    instructions: pip install -r requirements.txt && python main.py
+    url_detections:
+      - pattern: "Running on (https?://\\S+)"
+        port_only: false
+        https_when_port_only: false
+  my-python-app-e2e:
+    startup_order: 2
+    path_to_folder: ../my-python-app-e2e
+    instructions: pip install -r requirements.txt && python -m pytest
+    start_detection_regex: "test session starts"
