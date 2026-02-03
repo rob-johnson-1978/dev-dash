@@ -77,12 +77,12 @@ internal static class DashboardEventRaisedJsonContexts
     {
         _contexts = new Dictionary<Type, JsonSerializerContext>
         {
-            { typeof(DashboardStatusPublished), new DashboardStatusPublishedJsonContext(new JsonSerializerOptions()) },
-            { typeof(RunnableProcessesStarting), new RunnableProcessesStartingJsonContext(new JsonSerializerOptions()) },
-            { typeof(RunnableProcessStatusPublished), new RunnableProcessStatusPublishedJsonContext(new JsonSerializerOptions()) },
-            { typeof(MessageAreaMessagePublished), new MessageAreaMessagePublishedJsonContext(new JsonSerializerOptions()) },
-            { typeof(ProcessOutputLineEmitted), new ProcessOutputLineEmittedJsonContext(new JsonSerializerOptions()) },
-            { typeof(ProcessErrorOutputLineEmitted), new ProcessErrorOutputLineEmittedJsonContext(new JsonSerializerOptions()) },
+            { typeof(DashboardStatusPublished), new DashboardStatusPublishedJsonContext(BuildSerializerOptions()) },
+            { typeof(RunnableProcessesStarting), new RunnableProcessesStartingJsonContext(BuildSerializerOptions()) },
+            { typeof(RunnableProcessStatusPublished), new RunnableProcessStatusPublishedJsonContext(BuildSerializerOptions()) },
+            { typeof(MessageAreaMessagePublished), new MessageAreaMessagePublishedJsonContext(BuildSerializerOptions()) },
+            { typeof(ProcessOutputLineEmitted), new ProcessOutputLineEmittedJsonContext(BuildSerializerOptions()) },
+            { typeof(ProcessErrorOutputLineEmitted), new ProcessErrorOutputLineEmittedJsonContext(BuildSerializerOptions()) },
         }
         .ToImmutableDictionary();
     }
@@ -92,6 +92,12 @@ internal static class DashboardEventRaisedJsonContexts
         _contexts.TryGetValue(typeof(TEvent), out var context) 
             ? context 
             : throw new InvalidOperationException($"Type {typeof(TEvent)} is not registered in the context dictionary");
+
+    private static JsonSerializerOptions BuildSerializerOptions() => new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
 }
 
 /* dashboard events - wrapper event */

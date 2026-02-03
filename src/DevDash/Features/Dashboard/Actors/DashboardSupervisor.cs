@@ -27,11 +27,11 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
             case ConfigureDashboard:
                 {
                     Timers.StartPeriodicTimer(
-                            UpdateTimerKey,
-                            new PublishDashboardUpdate(),
-                            TimeSpan.Zero,
-                            TimeSpan.FromMilliseconds(500)
-                        );
+                        UpdateTimerKey,
+                        new PublishDashboardUpdate(),
+                        TimeSpan.Zero,
+                        TimeSpan.FromMilliseconds(500)
+                    );
 
                     if (configuration.Compose != null)
                     {
