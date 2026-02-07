@@ -115,7 +115,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         {
             case ICommmandRunnableProcessesToChangeState command:
                 {
-                    if (_state.Process == null || _state.RunStatus != RunStatus.Started)
+                    if (_state.Process == null)
                     {
                         break;
                     }
@@ -159,13 +159,9 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
                     _state.Urls.Add(lowerUrl);
 
-                    if (_state.DetectRunnableProcessStartedUrlViaStdOut != null && _state.RunStatus != RunStatus.Started)
+                    if (_state.DetectRunnableProcessStartedUrlViaStdOut != null)
                     {
                         SetAsRunnableProcessStarted(Context.System, Context.Parent, _state);
-                    }
-                    else
-                    {
-                        UpdateRunStatusAndTellParent(_state.RunStatus, Context.Parent, _state);
                     }
 
                     break;
@@ -254,7 +250,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
     private void HandleProcessStart()
     {
-        UpdateRunStatusAndTellParent(RunStatus.StartRequested, Context.Parent, _state);
+        UpdateRunStatusAndTellParent(RunnableProcessBehaviour.StartRequested, Context.Parent, _state);
 
         PublishProcessLogMessage(
             Context.System,
@@ -299,7 +295,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
         _state.Urls.Clear();
 
-        UpdateRunStatusAndTellParent(RunStatus.Stopped, Context.Parent, _state);
+        UpdateRunStatusAndTellParent(RunnableProcessBehaviour.Stopped, Context.Parent, _state);
 
         Become(ProcessStopped);
 
@@ -310,7 +306,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
     {
         _state.Urls.Clear();
 
-        UpdateRunStatusAndTellParent(RunStatus.Stopped, Context.Parent, _state);
+        UpdateRunStatusAndTellParent(RunnableProcessBehaviour.Stopped, Context.Parent, _state);
 
         Become(ProcessStopped);
 
@@ -454,12 +450,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
 
     private static void SetAsRunnableProcessStarted(ActorSystem system, IActorRef parent, DashboardProcessRunnerState state)
     {
-        if (state.RunStatus == RunStatus.Started)
-        {
-            return;
-        }
-
-        UpdateRunStatusAndTellParent(RunStatus.Started, parent, state);
+        UpdateRunStatusAndTellParent(RunnableProcessBehaviour.Started, parent, state);
 
         PublishProcessLogMessage(
             system,
@@ -470,12 +461,10 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
         parent.Tell(new RunnableProcessStarted(state.ProcessId));
     }
 
-    private static void UpdateRunStatusAndTellParent(RunStatus runStatus, IActorRef parent, DashboardProcessRunnerState state)
+    private static void UpdateRunStatusAndTellParent(RunnableProcessBehaviour currentBehaviour, IActorRef parent, DashboardProcessRunnerState state)
     {
-        state.RunStatus = runStatus;
-
         parent.Tell(new UpdateRunnableProcess(
-            new RunnableProcess(state.ProcessId, state.RunStatus, [.. state.Urls])
+            new RunnableProcess(state.ProcessId, currentBehaviour, [.. state.Urls])
         ));
     }
 
@@ -640,7 +629,7 @@ internal partial class DashboardProcessRunner : UntypedActor, IWithUnboundedStas
     private static int[] GetChildProcessIdsUnix(int pid, ILoggingAdapter logger)
     {
         var childPids = new List<int>();
-       
+
         try
         {
             var startInfo = new ProcessStartInfo

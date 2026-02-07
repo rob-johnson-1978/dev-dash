@@ -120,7 +120,7 @@ internal partial class DashboardEventRaisedJsonContext : JsonSerializerContext {
 
 /* dashboard events - specific events */
 
-internal sealed record DashboardStatusPublished(RunStatus Status);
+internal sealed record DashboardStatusPublished(DashboardBehaviour CurrentBehaviour);
 
 [JsonSerializable(typeof(DashboardStatusPublished))]
 internal partial class DashboardStatusPublishedJsonContext : JsonSerializerContext { }
@@ -130,7 +130,7 @@ internal sealed record RunnableProcessesStarting;
 [JsonSerializable(typeof(RunnableProcessesStarting))]
 internal partial class RunnableProcessesStartingJsonContext : JsonSerializerContext { }
 
-internal sealed record RunnableProcessStatusPublished(string ProcessId, RunStatus Status, ImmutableArray<string> Urls);
+internal sealed record RunnableProcessStatusPublished(string ProcessId, RunnableProcessBehaviour CurrentBehaviour, ImmutableArray<string> Urls);
 
 [JsonSerializable(typeof(RunnableProcessStatusPublished))]
 internal partial class RunnableProcessStatusPublishedJsonContext : JsonSerializerContext { }

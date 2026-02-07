@@ -3,13 +3,13 @@ using System.Collections.Immutable;
 
 namespace DevDash.Features.Dashboard;
 
-internal record RunnableProcess(string Id, RunStatus RunStatus, ImmutableArray<string> Urls);
+internal record RunnableProcess(string Id, RunnableProcessBehaviour CurrentBehaviour, ImmutableArray<string> Urls);
 
 internal sealed record RunnableProcessWithActor(
     ProcessType Type,
     int StartupOrder,
     string Id,
-    RunStatus RunStatus,
+    RunnableProcessBehaviour CurrentBehaviour,
     ImmutableArray<string> Urls,
     IActorRef ActorRef
-) : RunnableProcess(Id, RunStatus, Urls);
+) : RunnableProcess(Id, CurrentBehaviour, Urls);

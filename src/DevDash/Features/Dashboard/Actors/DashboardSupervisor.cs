@@ -41,14 +41,14 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
                                 ProcessType.Compose,
                                 int.MinValue + 1,
                                 Constants.DockerComposeProcessId,
-                                RunStatus.NeverStarted,
+                                RunnableProcessBehaviour.None,
                                 [],
                                 Context.ActorOf<DashboardProcessRunner>(BuildProcessActorName(Constants.DockerComposeProcessId))
                             )
                         );
                     }
 
-                    foreach(var process in configuration.Processes)
+                    foreach (var process in configuration.Processes)
                     {
                         _state.RunnableProcesses.Add(
                             process.Key,
@@ -56,7 +56,7 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
                                 ProcessType.Generic,
                                 process.Value.StartupOrder,
                                 process.Key,
-                                RunStatus.NeverStarted,
+                                RunnableProcessBehaviour.None,
                                 [],
                                 Context.ActorOf<DashboardProcessRunner>(BuildProcessActorName(process.Key))
                             )
@@ -72,11 +72,9 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
 
                     _logger.Info(
                         "Dashboard configured with {0} runnable processes: {1}",
-                        _state.RunnableProcesses.Count, 
+                        _state.RunnableProcesses.Count,
                         runnableProcessesLog
                     );
-
-                    _state.RunStatus = RunStatus.Stopped;
 
                     Become(Configured);
 
@@ -86,7 +84,7 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
                 }
             case PublishDashboardUpdate:
                 {
-                    HandlePublishDashboardUpdate();
+                    HandlePublishDashboardUpdate(DashboardBehaviour.None);
                     break;
                 }
             default:
@@ -103,8 +101,6 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
         {
             case StartRunnableProcesses:
                 {
-                    _state.RunStatus = RunStatus.Started;
-
                     Context
                         .System
                         .EventStream
@@ -140,7 +136,7 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
                 }
             case PublishDashboardUpdate:
                 {
-                    HandlePublishDashboardUpdate();
+                    HandlePublishDashboardUpdate(DashboardBehaviour.Configured);
                     break;
                 }
             default:
@@ -177,7 +173,7 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
                 }
             case PublishDashboardUpdate:
                 {
-                    HandlePublishDashboardUpdate();
+                    HandlePublishDashboardUpdate(DashboardBehaviour.Starting);
                     break;
                 }
             case IShouldCheckIfNextGroupOfRunnableProcessesCanBeStarted:
@@ -185,7 +181,7 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
                     var currentlyWaitingForStartedMessages = _state
                         .RunnableProcesses
                         .Values
-                        .Any(x => x.StartupOrder == _state.CurrentGroupOfProcessesToBeStarted && x.RunStatus == RunStatus.StartRequested);
+                        .Any(x => x.StartupOrder == _state.CurrentGroupOfProcessesToBeStarted && x.CurrentBehaviour == RunnableProcessBehaviour.StartRequested);
 
                     if (currentlyWaitingForStartedMessages)
                     {
@@ -307,7 +303,7 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
                 }
             case PublishDashboardUpdate:
                 {
-                    HandlePublishDashboardUpdate();
+                    HandlePublishDashboardUpdate(DashboardBehaviour.Started);
                     break;
                 }
             case ICommmandRunnableProcessesToChangeState command:
@@ -338,7 +334,7 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
     {
         Context.Sender.Tell(
             _state.RunnableProcesses
-                .Select(r => new RunnableProcess(r.Key, r.Value.RunStatus, r.Value.Urls))
+                .Select(r => new RunnableProcess(r.Key, r.Value.CurrentBehaviour, r.Value.Urls))
                 .ToImmutableArray()
         );
     }
@@ -353,25 +349,25 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
 
         var updatedProcess = runnableProcess with
         {
-            RunStatus = command.Process.RunStatus,
+            CurrentBehaviour = command.Process.CurrentBehaviour,
             Urls = command.Process.Urls
         };
 
         _state.RunnableProcesses[command.Process.Id] = updatedProcess;
 
         _logger.Info(
-            "Runnable process updated: {0}, RunStatus: {1}, URLs: {2}",
+            "Runnable process updated: {0}, CurrentBehaviour: {1}, URLs: {2}",
             command.Process.Id,
-            command.Process.RunStatus,
+            command.Process.CurrentBehaviour,
             string.Join(", ", command.Process.Urls)
         );
     }
 
-    private void HandlePublishDashboardUpdate()
+    private static void HandlePublishDashboardUpdate(DashboardBehaviour currentBehaviour)
     {
         Context.System.EventStream.Publish(
             DashboardEventRaised.Create(
-                new DashboardStatusPublished(_state.RunStatus)
+                new DashboardStatusPublished(currentBehaviour)
             )
         );
     }
@@ -382,7 +378,7 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
         {
             Context.System.EventStream.Publish(
                 DashboardEventRaised.Create(
-                    new RunnableProcessStatusPublished(proc.Id, proc.RunStatus, proc.Urls)
+                    new RunnableProcessStatusPublished(proc.Id, proc.CurrentBehaviour, proc.Urls)
                 )
             );
         }
@@ -394,8 +390,6 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
             DashboardEventRaised.Create(
                 new MessageAreaMessagePublished("Starting dashboard..."))
             );
-
-        _state.RunStatus = RunStatus.NeverStarted; // this disables all buttons then subsequent handling changes it
 
         _logger.Info("Starting dashboard after UI command...");
 
@@ -409,8 +403,6 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
                 new MessageAreaMessagePublished("Stopping dashboard..."))
             );
 
-        _state.RunStatus = RunStatus.NeverStarted; // this disables all buttons then subsequent handling changes it
-
         _logger.Info("Stopping dashboard after UI command...");
 
         ReconfigureAll();
@@ -422,8 +414,6 @@ internal sealed class DashboardSupervisor(Configuration configuration) : Untyped
             DashboardEventRaised.Create(
                 new MessageAreaMessagePublished("Restarting dashboard..."))
             );
-
-        _state.RunStatus = RunStatus.NeverStarted; // this disables all buttons then subsequent handling changes it
 
         _logger.Info("Restarting dashboard after UI command...");
 

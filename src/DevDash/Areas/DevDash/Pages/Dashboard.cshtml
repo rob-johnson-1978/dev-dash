@@ -65,16 +65,27 @@
 
 @section Scripts {
     <script type="text/javascript">
+        // events
         window.EVENT_NAMES_DASHBOARD_STATUS_PUBLISHED = '@nameof(DashboardStatusPublished)';
         window.EVENT_NAMES_RUNNABLE_PROCESSES_STARTING = '@nameof(RunnableProcessesStarting)';
         window.EVENT_NAMES_RUNNABLE_PROCESS_STATUS_PUBLISHED = '@nameof(RunnableProcessStatusPublished)';
         window.EVENT_NAMES_MESSAGE_AREA_MESSAGE_PUBLISHED = '@nameof(MessageAreaMessagePublished)';
         window.EVENT_NAMES_PROCESS_OUTPUT_LINE_EMITTED = '@nameof(ProcessOutputLineEmitted)';
         window.EVENT_NAMES_PROCESS_ERROR_OUTPUT_LINE_EMITTED = '@nameof(ProcessErrorOutputLineEmitted)';
-        window.ENUMS_RUNSTATUS_NEVER_STARTED = '@RunStatus.NeverStarted';
-        window.ENUMS_RUNSTATUS_START_REQUESTED = '@RunStatus.StartRequested';
-        window.ENUMS_RUNSTATUS_STARTED = '@RunStatus.Started';
-        window.ENUMS_RUNSTATUS_STOPPED = '@RunStatus.Stopped';
+        
+        // dashboard behaviours
+        window.ENUMS_DASHBOARD_BEHAVIOUR_NONE = '@DashboardBehaviour.None';
+        window.ENUMS_DASHBOARD_BEHAVIOUR_CONFIGURED = '@DashboardBehaviour.Configured';
+        window.ENUMS_DASHBOARD_BEHAVIOUR_STARTING = '@DashboardBehaviour.Starting';
+        window.ENUMS_DASHBOARD_BEHAVIOUR_STARTED = '@DashboardBehaviour.Started';
+
+        // process behaviours
+        window.ENUMS_PROCESS_BEHAVIOUR_NONE = '@RunnableProcessBehaviour.None';
+        window.ENUMS_PROCESS_BEHAVIOUR_START_REQUESTED = '@RunnableProcessBehaviour.StartRequested';
+        window.ENUMS_PROCESS_BEHAVIOUR_STARTED = '@RunnableProcessBehaviour.Started';
+        window.ENUMS_PROCESS_BEHAVIOUR_STOPPED = '@RunnableProcessBehaviour.Stopped';
+
+        // flags
         window.CONFIG_CONSOLE_OUTPUT_MAX_LINES = '@DevDashConfiguration.ConsoleOutputMaxLines';
         window.CONFIG_CONSOLE_OUTPUT_LINE_REMOVAL_BATCH_SIZE = '@DevDashConfiguration.ConsoleOutputLineRemovalBatchSize';
     </script>

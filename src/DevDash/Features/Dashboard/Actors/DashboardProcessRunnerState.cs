@@ -12,6 +12,5 @@ internal sealed class DashboardProcessRunnerState
     public Func<string, bool>? DetectRunnableProcessStartedViaStdOut { get; set; }
     public Action? DetectRunnableProcessStartedAfterProcessStarted { get; set; }
     public HashSet<string> Urls { get; } = [];
-    public RunStatus RunStatus { get; set; }    
     public string FullComposePath { get; set; } = string.Empty;    
 }

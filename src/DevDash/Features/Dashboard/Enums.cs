@@ -8,11 +8,20 @@ internal enum ProcessType
     Generic
 }
 
-[JsonConverter(typeof(JsonStringEnumConverter<RunStatus>))]
-internal enum RunStatus
+[JsonConverter(typeof(JsonStringEnumConverter<DashboardBehaviour>))]
+internal enum DashboardBehaviour
 {
-    NeverStarted,
+    None,
+    Configured,
+    Starting,
+    Started
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RunnableProcessBehaviour>))]
+internal enum RunnableProcessBehaviour
+{
+    None,
     StartRequested,
-    Started,
-    Stopped
+    Stopped,
+    Started
 }

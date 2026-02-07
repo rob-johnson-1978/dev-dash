@@ -28,7 +28,7 @@ const sendDashboardProcessCommand = (processId, command) => {
 }
 
 const disableGlobalButtons = () => {
-    globalStartButton.classList.add("disabled");    
+    globalStartButton.classList.add("disabled");
     globalStopButton.classList.add("disabled");
     globalRestartButton.classList.add("disabled");
 };
@@ -109,26 +109,29 @@ const addEventListeners = (eventSource) => {
     eventSource.addEventListener(EVENT_NAMES_DASHBOARD_STATUS_PUBLISHED, (e) => {
         const data = JSON.parse(e.data);
 
-        switch (data.status) {
-            case ENUMS_RUNSTATUS_NEVER_STARTED:
-            case ENUMS_RUNSTATUS_START_REQUESTED: {
-                globalStartButton.classList.add("disabled");
-                globalStopButton.classList.add("disabled");
-                globalRestartButton.classList.add("disabled");
-                break;
-            }
-            case ENUMS_RUNSTATUS_STARTED: {
-                globalStartButton.classList.add("disabled");
-                globalStopButton.classList.remove("disabled");
-                globalRestartButton.classList.remove("disabled");
-                break;
-            }
-            case ENUMS_RUNSTATUS_STOPPED: {
-                globalStartButton.classList.remove("disabled");
-                globalStopButton.classList.add("disabled");
-                globalRestartButton.classList.add("disabled");
-                break;
-            }
+        switch (data.currentBehaviour) {
+            case ENUMS_DASHBOARD_BEHAVIOUR_NONE:
+                {
+                    globalStartButton.classList.add("disabled");
+                    globalStopButton.classList.add("disabled");
+                    globalRestartButton.classList.add("disabled");
+                    break;
+                }
+            case ENUMS_DASHBOARD_BEHAVIOUR_CONFIGURED:
+                {
+                    globalStartButton.classList.remove("disabled");
+                    globalStopButton.classList.add("disabled");
+                    globalRestartButton.classList.add("disabled");
+                    break;
+                }
+            case ENUMS_DASHBOARD_BEHAVIOUR_STARTING:
+            case ENUMS_DASHBOARD_BEHAVIOUR_STARTED:
+                {
+                    globalStartButton.classList.add("disabled");
+                    globalStopButton.classList.remove("disabled");
+                    globalRestartButton.classList.remove("disabled");
+                    break;
+                }
         }
     });
 
@@ -148,35 +151,38 @@ const addEventListeners = (eventSource) => {
 
         runnableProcess.buttonContainerElement.querySelectorAll(".discovered-url").forEach(el => el.remove());
 
-        if (data.status === ENUMS_RUNSTATUS_NEVER_STARTED || data.status === ENUMS_RUNSTATUS_START_REQUESTED) {
-            runnableProcess.startButtonElement.classList.add("disabled");
-            runnableProcess.stopButtonElement.classList.add("disabled");
-            runnableProcess.restartButtonElement.classList.add("disabled");
-            return;
-        }
+        switch (data.currentBehaviour) {
+            case ENUMS_PROCESS_BEHAVIOUR_NONE:
+            case ENUMS_PROCESS_BEHAVIOUR_START_REQUESTED:
+                runnableProcess.startButtonElement.classList.add("disabled");
+                runnableProcess.stopButtonElement.classList.add("disabled");
+                runnableProcess.restartButtonElement.classList.add("disabled");
+                break;
 
-        if (data.status === ENUMS_RUNSTATUS_STARTED) {
-            runnableProcess.startButtonElement.classList.add("disabled");
-            runnableProcess.stopButtonElement.classList.remove("disabled");
-            runnableProcess.restartButtonElement.classList.remove("disabled");
+            case ENUMS_PROCESS_BEHAVIOUR_STARTED:
+                runnableProcess.startButtonElement.classList.add("disabled");
+                runnableProcess.stopButtonElement.classList.remove("disabled");
+                runnableProcess.restartButtonElement.classList.remove("disabled");
 
-            data.urls.forEach(url => {
-                const link = document.createElement("a");
+                (data.urls || []).forEach(url => {
+                    const link = document.createElement("a");
 
-                link.href = url
-                link.textContent = "open_in_new";
-                link.classList.add("discovered-url");
-                link.classList.add("material-symbols-outlined");
-                link.target = "_blank";
-                link.setAttribute("title", `Open ${url} in new tab or window`);
+                    link.href = url;
+                    link.textContent = "open_in_new";
+                    link.classList.add("discovered-url");
+                    link.classList.add("material-symbols-outlined");
+                    link.target = "_blank";
+                    link.setAttribute("title", `Open ${url} in new tab or window`);
 
-                runnableProcess.buttonContainerElement.prepend(link);
-            });
-        }
-        else {
-            runnableProcess.startButtonElement.classList.remove("disabled");
-            runnableProcess.stopButtonElement.classList.add("disabled");
-            runnableProcess.restartButtonElement.classList.add("disabled");
+                    runnableProcess.buttonContainerElement.prepend(link);
+                });
+                break;
+
+            case ENUMS_PROCESS_BEHAVIOUR_STOPPED:
+                runnableProcess.startButtonElement.classList.remove("disabled");
+                runnableProcess.stopButtonElement.classList.add("disabled");
+                runnableProcess.restartButtonElement.classList.add("disabled");
+                break;
         }
     });
 
@@ -190,7 +196,7 @@ const addEventListeners = (eventSource) => {
 
     eventSource.addEventListener(EVENT_NAMES_MESSAGE_AREA_MESSAGE_PUBLISHED, (e) => {
         const data = JSON.parse(e.data);
-        showMessage(data.message, data.status);
+        showMessage(data.message, data.currentBehaviour);
     });
 }
 
